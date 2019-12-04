@@ -136,16 +136,17 @@ class BleuEvaluator(BaseEvaluator):
 
 
 class MultiWozDB(object):
-    # loading databases
-    domains = ['restaurant', 'hotel', 'attraction', 'train', 'taxi', 'hospital']  # , 'police']
-    dbs = {}
-    CUR_DIR = os.path.dirname(__file__).replace('latent_dialog', '')
+    def init_db():
+        # loading databases
+        domains = ['restaurant', 'hotel', 'attraction', 'train', 'taxi', 'hospital']  # , 'police']
+        dbs = {}
+        CUR_DIR = os.path.dirname(__file__).replace('latent_dialog', '')
 
-    for domain in domains:
-        db = os.path.join(CUR_DIR, 'data/norm-multi-woz/db/{}-dbase.db'.format(domain))
-        conn = sqlite3.connect(db)
-        c = conn.cursor()
-        dbs[domain] = c
+        for domain in domains:
+            db = os.path.join(CUR_DIR, 'data/norm-multi-woz/db/{}-dbase.db'.format(domain))
+            conn = sqlite3.connect(db)
+            c = conn.cursor()
+            dbs[domain] = c
 
     def queryResultVenues(self, domain, turn, real_belief=False):
         # query the db

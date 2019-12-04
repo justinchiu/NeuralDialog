@@ -8,6 +8,7 @@ from latent_dialog.corpora import DealCorpus
 from latent_dialog.data_loaders import DealDataLoaders
 from latent_dialog.evaluators import BleuEvaluator
 from latent_dialog.models_deal import CatHRED
+from latent_dialog.models_checklist import Checklist
 from latent_dialog.main import train, validate, generate
 import latent_dialog.domain as domain
 
@@ -49,8 +50,7 @@ config = Pack(
     y_size = 10,
     k_size = 20,
     beta = 0.01,
-    #simple_posterior=True,
-    simple_posterior=False,
+    simple_posterior=True,
     use_pr = True,
     dec_use_attn = False,
     dec_rnn_cell = 'gru', # must be same as ctx_cell_size due to the passed initial state
@@ -108,7 +108,7 @@ test_data = DealDataLoaders('Test', test_dial, config)
 
 evaluator = BleuEvaluator('Deal')
 
-model = CatHRED(corpus, config)
+model = Checklist(corpus, config)
 
 if config.use_gpu:
     model.cuda()
