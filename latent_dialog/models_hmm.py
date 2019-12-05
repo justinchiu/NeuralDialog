@@ -145,7 +145,7 @@ class Hmm(BaseModel):
 
         return dec_init_state, attn_context, logprob_z
 
-    def hmm_potentials(self, emb, lengths=None):
+    def hmm_potentials(self, emb, lengths=None, dlg_lens=None):
         # (a) - [a,b] - (b), then transpose potentials later for torch_struct
         pz0 = th.einsum("nab, nab-> na", self.w_pz0(emb), emb)
         transition_matrix = th.einsum("nac,nbc->nab", emb, emb)
@@ -157,7 +157,10 @@ class Hmm(BaseModel):
             )
             pz0 = pz0.masked_fill(mask, float("-inf"))
             transition_matrix = transition_matrix.masked_fill(mask.unsqueeze(-2), float("-inf"))
-        return pz0.log_softmax(-1), transition_matrix.log_softmax(-1).transpose(-2, -1)
+        if dlg_lens is not None:
+            import pdb; pdb.set_trace()
+        #return pz0.log_softmax(-1), transition_matrix.log_softmax(-1).transpose(-2, -1)
+        return pz0, transition_matrix.transpose(-2, -1)
 
     def forward(self, data_feed, mode, clf=False, gen_type='greedy', use_pz=None, return_latent=False):
         ctx_lens = data_feed['context_lens']  # (batch_size, )
@@ -176,7 +179,7 @@ class Hmm(BaseModel):
         enc_inputs, _, _ = self.utt_encoder(ctx_utts, goals=goals_h)
         # (batch_size, max_ctx_len, num_directions*utt_cell_size)
 
-        # enc_outs: (batch_size, max_ctx_len, ctx_cell_size)
+        # : (batch_size, max_ctx_len, ctx_cell_size)
         # enc_last: tuple, (h_n, c_n)
         # h_n: (num_layers*num_directions, batch_size, ctx_cell_size)
         # c_n: (num_layers*num_directions, batch_size, ctx_cell_size)
@@ -186,33 +189,46 @@ class Hmm(BaseModel):
         dec_inputs = out_utts[:, :-1]
         labels = out_utts[:, 1:].contiguous()
 
-        logits_pz_t, log_pz_t = self.c2z(enc_last)
+        # TODO: make this directed? then it's an MEMM
+        logits_pzt, log_pzt = self.c2z(enc_last)
 
         # encode response and use posterior to find q(z|x, c)
-        x_h, _, _ = self.utt_encoder(out_utts.unsqueeze(1), goals=goals_h)
-        logits_qz_t, log_qz_t = self.xc2z(th.cat([enc_last, x_h.squeeze(1).unsqueeze(0)], dim=2))
+        #x_h, _, _ = self.utt_encoder(out_utts.unsqueeze(1), goals=goals_h)
+        #logits_qz_t, log_qz_t = self.xc2z(th.cat([enc_last, x_h.squeeze(1).unsqueeze(0)], dim=2))
 
         state_emb = self.res_layer(self.item_emb(partitions).view(-1, self.z_size, 3 * 32))
-        _, psi_zr_zl= self.hmm_potentials(state_emb, lengths=num_partitions)
-
-        # REMINDER: transpose last two dimensions of HMM for torch_struct
-        import pdb; pdb.set_trace()
-        # reshape and run HMM? 
+        _, psi_zr_zl= self.hmm_potentials(state_emb, lengths=num_partitions, dlg_lens=data_feed.dlg_lens)
+        # REMINDER: psi_zr_zl = psi(z_t, z_t-1) (z right, z left)
+        
+        # TODO: GEN? not sure how to sample from this haha
+         
+        # repeat EVERYTHING, add state_embs to `goals_h` and get scores?
+        # maybe don't hijack that...jk do it.
 
         # decode
+        N, T = dec_inputs.shape
+        N, H = goals_h.shape
+        dec_init_state = enc_last.repeat(1, self.z_size, 1)
         dec_outputs, dec_hidden_state, ret_dict = self.decoder(
-            batch_size=batch_size,
-            dec_inputs=dec_inputs,
-            # (batch_size, response_size-1)
-            dec_init_state=dec_init_state,  # tuple: (h, c)
-            attn_context=attn_context,
-            # (batch_size, max_ctx_len, ctx_cell_size)
-            mode=mode,
-            gen_type=gen_type,
-            beam_size=self.config.beam_size,
-            goal_hid=goals_h,  # (batch_size, goal_nhid)
+            batch_size = batch_size,
+            dec_inputs = dec_inputs.repeat(1, self.z_size, 1).view(-1, T), # (batch_size, response_size-1)
+            dec_init_state = dec_init_state,  # tuple: (h, c)
+            attn_context = None, # (batch_size, max_ctx_len, ctx_cell_size)
+            mode = mode,
+            gen_type = gen_type,
+            beam_size = self.config.beam_size,
+            goal_hid = (goals_h.unsqueeze(1) + state_emb).view(-1, H),  # (batch_size, goal_nhid)
         )
+        # models padding too, oh well
+        BLAM, T, V = dec_outputs.shape
+        psi_xt_zt = dec_outputs.view(N, self.z_size, T, V).gather(
+            -1,
+            labels.view(N, 1, T, 1).expand(N, self.z_size, T, 1),
+        ).squeeze(-1).sum(-1)
 
+        # do linear chain stuff
+        struct = ts.LinearChain(ts.LogSemiring)
+        import pdb; pdb.set_trace()
 
         if mode == GEN:
             return ret_dict, labels
