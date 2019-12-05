@@ -48,6 +48,7 @@ class Hmm(BaseModel):
         self.item_emb = nn.Embedding(11, 32)
         self.res_layer = nn_lib.ResidualLayer(3 * 32, 64)
         self.w_pz0 = nn.Linear(64, 64, bias=False)
+        self.prior_res_layer = nn_lib.ResidualLayer(config.ctx_cell_size, 64)
 
         self.embedding = nn.Embedding(self.vocab_size, config.embed_size, padding_idx=self.pad_id)
         self.utt_encoder = RnnUttEncoder(vocab_size=self.vocab_size,
@@ -115,7 +116,7 @@ class Hmm(BaseModel):
             self.log_uniform_z = self.log_uniform_z.cuda()
 
     def valid_loss(self, loss, batch_cnt=None):
-        return loss.nll + loss.pi_kl
+        return loss.nll
 
     # for decoding? 
     def z2dec(self, last_h, requires_grad):
@@ -145,22 +146,21 @@ class Hmm(BaseModel):
 
         return dec_init_state, attn_context, logprob_z
 
-    def hmm_potentials(self, emb, lengths=None, dlg_lens=None):
+    def hmm_potentials(self, emb, ctx, lengths=None, dlg_lens=None):
         # (a) - [a,b] - (b), then transpose potentials later for torch_struct
-        pz0 = th.einsum("nab, nab-> na", self.w_pz0(emb), emb)
-        transition_matrix = th.einsum("nac,nbc->nab", emb, emb)
+        phi_pzt = th.einsum("nzh,nh->nz", emb, ctx)
+        transition_matrix = th.einsum("nac,nbc->nab", emb + ctx.unsqueeze(1), emb)
         if lengths is not None:
             N = lengths.shape[0]
             mask = ~(
                 th.arange(self.z_size, device = lengths.device, dtype = lengths.dtype)
                     .repeat(N, 1) < lengths.unsqueeze(-1)
             )
-            pz0 = pz0.masked_fill(mask, float("-inf"))
+            phi_pzt = phi_pzt.masked_fill(mask, float("-inf"))
             transition_matrix = transition_matrix.masked_fill(mask.unsqueeze(-2), float("-inf"))
-        if dlg_lens is not None:
-            import pdb; pdb.set_trace()
         #return pz0.log_softmax(-1), transition_matrix.log_softmax(-1).transpose(-2, -1)
-        return pz0, transition_matrix.transpose(-2, -1)
+        #return pz0, transition_matrix.transpose(-2, -1)
+        return phi_pzt, transition_matrix
 
     def forward(self, data_feed, mode, clf=False, gen_type='greedy', use_pz=None, return_latent=False):
         ctx_lens = data_feed['context_lens']  # (batch_size, )
@@ -190,20 +190,21 @@ class Hmm(BaseModel):
         labels = out_utts[:, 1:].contiguous()
 
         # TODO: make this directed? then it's an MEMM
-        logits_pzt, log_pzt = self.c2z(enc_last)
+        #logits_pzt, log_pzt = self.c2z(enc_last)
 
         # encode response and use posterior to find q(z|x, c)
         #x_h, _, _ = self.utt_encoder(out_utts.unsqueeze(1), goals=goals_h)
         #logits_qz_t, log_qz_t = self.xc2z(th.cat([enc_last, x_h.squeeze(1).unsqueeze(0)], dim=2))
 
+        ctx_input = self.prior_res_layer(enc_last.squeeze(0))
         state_emb = self.res_layer(self.item_emb(partitions).view(-1, self.z_size, 3 * 32))
-        _, psi_zr_zl= self.hmm_potentials(state_emb, lengths=num_partitions, dlg_lens=data_feed.dlg_lens)
         # REMINDER: psi_zr_zl = psi(z_t, z_t-1) (z right, z left)
-        
-        # TODO: GEN? not sure how to sample from this haha
-         
+        #_, psi_zr_zl= self.hmm_potentials(state_emb, lengths=num_partitions, dlg_lens=data_feed.dlg_lens)
+        phi_zt, psi_zl_zr = self.hmm_potentials(state_emb, ctx_input, lengths=num_partitions)
+        logp_zt,  logp_zr_zl = phi_zt.log_softmax(-1), psi_zl_zr.log_softmax(-1).transpose(-1, -2)
+
         # repeat EVERYTHING, add state_embs to `goals_h` and get scores?
-        # maybe don't hijack that...jk do it.
+        # TODO: don't hijack, add a new input so we can attend to it
 
         # decode
         N, T = dec_inputs.shape
@@ -219,27 +220,56 @@ class Hmm(BaseModel):
             beam_size = self.config.beam_size,
             goal_hid = (goals_h.unsqueeze(1) + state_emb).view(-1, H),  # (batch_size, goal_nhid)
         )
-        # models padding too, oh well
         BLAM, T, V = dec_outputs.shape
-        psi_xt_zt = dec_outputs.view(N, self.z_size, T, V).gather(
+        # all word probs, they need to be summed over
+        # `log p(xt) = \sum_i \log p(w_ti)`
+        logp_wt_zt = dec_outputs.view(N, self.z_size, T, V).gather(
             -1,
             labels.view(N, 1, T, 1).expand(N, self.z_size, T, 1),
-        ).squeeze(-1).sum(-1)
+        ).squeeze(-1)
+
+        # get rid of padding, mask to 0
+        logp_xt_zt = (logp_wt_zt
+            .masked_fill(labels.unsqueeze(1) == self.nll.padding_idx, 0)
+            .sum(-1)
+        )
 
         # do linear chain stuff
-        struct = ts.LinearChain(ts.LogSemiring)
-        import pdb; pdb.set_trace()
+        # a little weird, we're working with a chain graphical model
+        # need to normalize over each zt so the lm probs remain normalized
+        # TODO: are we going to run into numerical stability issues?
+        # might need to pretrain to assign more mass to correct sentences.
+        dlg_idxs = data_feed.dlg_idxs
+        prev_zt = logp_zt[0]
+        log_pxt = [
+            (logp_xt_zt[0] + prev_zt).logsumexp(-1)
+        ]
+        for t in range(1, N):
+            if dlg_idxs[t] != dlg_idxs[t-1]:
+                # restart hmm
+                prev_zt = phi_zt[t]
+                log_pxt.append(
+                    (logp_xt_zt[t] + prev_zt).logsumexp(-1)
+                )
+            else:
+                # continue
+                prev_zt = (prev_zt.unsqueeze(-2) + logp_zr_zl[t]).logsumexp(-1)
+                log_pxt.append(
+                    (logp_xt_zt[t] + prev_zt).logsumexp(-1)
+                )
+
+        nll = -sum(log_pxt)
+        if self.nll.avg_type == "seq":
+            nll = nll / N
+        elif self.nll.avg_type == "real_word":
+            nll = nll / (labels == self.nll.padding_idx).sum()
+        else:
+            raise ValueError("Unknown average type")
 
         if mode == GEN:
             return ret_dict, labels
         else:
-            # regularization qy to be uniform
-            avg_log_qy = th.exp(log_qy.view(-1, self.config.y_size, self.config.k_size))
-            avg_log_qy = th.log(th.mean(avg_log_qy, dim=0) + 1e-15)
-            mi = self.entropy_loss(avg_log_qy, unit_average=True) - self.entropy_loss(log_qy, unit_average=True)
-            pi_kl = self.cat_kl_loss(log_qy, log_py, batch_size, unit_average=True)
-            pi_h = self.entropy_loss(log_qy, unit_average=True)
-            results = Pack(nll=self.nll(dec_outputs, labels), mi=mi, pi_kl=pi_kl, pi_h=pi_h)
+            results = Pack(nll=nll)
 
             if return_latent:
                 results['latent_action'] = dec_init_state
