@@ -1,4 +1,7 @@
-## Rethinking Action Spaces for Reinforcement Learning in End-to-end Dialog Agents with Latent Variable Models
+## Rethinking Action Spaces for Reinforcement Learning in End-to-end Dialog Agents with Latent Variable Models (searchable fork)
+
+Fork of https://github.com/snakeztc/NeuralDialog-LaRL. Github is annoying and doesn't allow searching in forks.
+
 Codebase for [Rethinking Action Spaces for Reinforcement Learning in End-to-end Dialog Agents with Latent Variable Models](https://arxiv.org/abs/1902.08858), published as a long paper in NAACL 2019 with oral presentation.
 
 <p align="center">
