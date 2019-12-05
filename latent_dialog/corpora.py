@@ -157,7 +157,8 @@ class DealCorpus(object):
         print('goal vocab size of train set = %d, \n' % (raw_vocab_size,) + \
               'cut off at word %s with frequency = %d, \n' % (vocab_count[-1][0], vocab_count[-1][1]) + \
               'OOV rate = %.2f' % (1 - float(discard_wc) / len(all_goal),))
-        self.goal_vocab = [UNK] + [g for g, cnt in vocab_count]
+        #self.goal_vocab = [g for g, cnt in vocab_count] + [UNK]
+        self.goal_vocab = [str(x) for x in range(11)] + [UNK]
         self.goal_vocab_dict = {t: idx for idx, t in enumerate(self.goal_vocab)}
         self.goal_unk_id = self.goal_vocab_dict[UNK]
 

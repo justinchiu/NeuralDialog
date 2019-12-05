@@ -19,9 +19,9 @@ import latent_dialog.criterions as criterions
 
 #from torch_struct import gh
 
-class Checklist(BaseModel):
+class Hmm(BaseModel):
     def __init__(self, corpus, config):
-        super(Checklist, self).__init__(config)
+        super(Hmm, self).__init__(config)
 
         self.vocab = corpus.vocab
         self.vocab_dict = corpus.vocab_dict

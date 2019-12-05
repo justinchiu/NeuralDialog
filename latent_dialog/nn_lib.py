@@ -6,6 +6,20 @@ from torch.autograd import Variable
 from latent_dialog.utils import cast_type, FLOAT
 
 
+class ResidualLayer(nn.Module):
+    def __init__(
+        self, in_dim = 100,
+        out_dim = 100,
+    ):
+        super(ResidualLayer, self).__init__()
+        self.lin1 = nn.Linear(in_dim, out_dim)
+        self.lin2 = nn.Linear(out_dim, out_dim)
+        self.layer_norm = nn.LayerNorm(out_dim)
+    def forward(self, x):
+        x = self.lin1(x).relu()
+        return self.layer_norm(self.lin2(x).relu() + x)
+
+
 class IdentityConnector(nn.Module):
     def __init(self):
         super(IdentityConnector, self).__init__()
@@ -118,6 +132,36 @@ class Hidden2Discrete(nn.Module):
         logits = logits.view(-1, self.k_size)
         log_qy = F.log_softmax(logits, dim=1)
         return logits, log_qy
+
+class Hidden2DiscreteDeal(nn.Module):
+    def __init__(self, input_size, z_size, is_lstm=False, has_bias=True):
+        super(Hidden2DiscreteDeal, self).__init__()
+        self.z_size = z_size
+        latent_size = self.z_size
+        if is_lstm:
+            self.p_h = nn.Linear(input_size, latent_size, bias=has_bias)
+
+            self.p_c = nn.Linear(input_size, latent_size, bias=has_bias)
+        else:
+            self.p_h = nn.Linear(input_size, latent_size, bias=has_bias)
+
+        self.is_lstm = is_lstm
+
+    def forward(self, inputs, mask=None):
+        """
+        :param inputs: batch_size x input_size
+        :return:
+        """
+        if self.is_lstm:
+            h, c = inputs
+            if h.dim() == 3:
+                h = h.squeeze(0)
+                c = c.squeeze(0)
+            logits = self.p_h(h) + self.p_c(c)
+        else:
+            logits = self.p_h(inputs)
+        log_pz = F.log_softmax(logits, dim=-1)
+        return logits, log_pz
 
 
 class GaussianConnector(nn.Module):
