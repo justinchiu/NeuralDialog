@@ -157,7 +157,8 @@ class Hmm(BaseModel):
                     .repeat(N, 1) < lengths.unsqueeze(-1)
             )
             phi_pzt = phi_pzt.masked_fill(mask, float("-inf"))
-            transition_matrix = transition_matrix.masked_fill(mask.unsqueeze(-2), float("-inf"))
+            #transition_matrix1 = transition_matrix.masked_fill(mask.unsqueeze(-2), float("-inf"))
+            transition_matrix = transition_matrix.masked_fill(mask.unsqueeze(-2), -1e12)
         #return pz0.log_softmax(-1), transition_matrix.log_softmax(-1).transpose(-2, -1)
         #return pz0, transition_matrix.transpose(-2, -1)
         return phi_pzt, transition_matrix
@@ -201,7 +202,7 @@ class Hmm(BaseModel):
         # REMINDER: psi_zr_zl = psi(z_t, z_t-1) (z right, z left)
         #_, psi_zr_zl= self.hmm_potentials(state_emb, lengths=num_partitions, dlg_lens=data_feed.dlg_lens)
         phi_zt, psi_zl_zr = self.hmm_potentials(state_emb, ctx_input, lengths=num_partitions)
-        logp_zt,  logp_zr_zl = phi_zt.log_softmax(-1), psi_zl_zr.log_softmax(-1).transpose(-1, -2)
+        logp_zt,  logp_zr_zl = phi_zt.log_softmax(-1), psi_zl_zr.log_softmax(-1).transpose(-1, -2).contiguous()
 
         # repeat EVERYTHING, add state_embs to `goals_h` and get scores?
         # TODO: don't hijack, add a new input so we can attend to it
@@ -241,28 +242,30 @@ class Hmm(BaseModel):
         # might need to pretrain to assign more mass to correct sentences.
         dlg_idxs = data_feed.dlg_idxs
         prev_zt = logp_zt[0]
-        log_pxt = [
+        logp_xt = [
             (logp_xt_zt[0] + prev_zt).logsumexp(-1)
         ]
         for t in range(1, N):
             if dlg_idxs[t] != dlg_idxs[t-1]:
                 # restart hmm
-                prev_zt = phi_zt[t]
-                log_pxt.append(
+                prev_zt = logp_zt[t]
+                logp_xt.append(
                     (logp_xt_zt[t] + prev_zt).logsumexp(-1)
                 )
             else:
                 # continue
+                # unsqueeze is unnecessary, broadcasting handles it
+                meh = prev_zt
                 prev_zt = (prev_zt.unsqueeze(-2) + logp_zr_zl[t]).logsumexp(-1)
-                log_pxt.append(
+                logp_xt.append(
                     (logp_xt_zt[t] + prev_zt).logsumexp(-1)
                 )
 
-        nll = -sum(log_pxt)
+        nll = -sum(logp_xt)
         if self.nll.avg_type == "seq":
             nll = nll / N
         elif self.nll.avg_type == "real_word":
-            nll = nll / (labels == self.nll.padding_idx).sum()
+            nll = nll / (labels != self.nll.padding_idx).sum()
         else:
             raise ValueError("Unknown average type")
 

@@ -22,6 +22,8 @@ print('[START]', start_time, '='*30)
 domain_name = 'object_division'
 domain_info = domain.get_domain(domain_name)
 
+th.set_anomaly_enabled(True)
+
 config = Pack(
     train_path = '../data/negotiate/train.txt',
     val_path = '../data/negotiate/val.txt',
@@ -29,8 +31,10 @@ config = Pack(
     last_n_model = 5,
     max_utt_len = 20,
     #backward_size = 14, 
-    backward_size = 1, 
-    batch_size = 32,
+    backward_size = 8, 
+    #backward_size = 1, 
+    #batch_size = 32,
+    batch_size = 4,
     grad_clip=3.0,
     use_gpu = True,
     op = 'adam', 
@@ -62,7 +66,8 @@ config = Pack(
     beam_size = 20,
     avg_type = 'real_word',
     print_step = 100,
-    ckpt_step = 400,
+    #ckpt_step = 400,
+    ckpt_step = 2523,
     improve_threshold = 0.996, 
     patient_increase = 2.0, 
     save_model = True, 
@@ -118,7 +123,8 @@ if config.use_gpu:
 best_epoch = None
 if not config.forward_only:
     try:
-        best_epoch = train(model, train_data, val_data, test_data, config, evaluator, gen=generate)
+        #best_epoch = train(model, train_data, val_data, test_data, config, evaluator, gen=generate)
+        best_epoch = train(model, train_data, val_data, test_data, config, evaluator, gen=None)
     except KeyboardInterrupt:
         print('Training stopped by keyboard.')
 
