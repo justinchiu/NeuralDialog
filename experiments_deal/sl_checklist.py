@@ -5,7 +5,7 @@ import torch as th
 import logging
 from latent_dialog.utils import Pack, prepare_dirs_loggers, set_seed
 from latent_dialog.corpora import DealCorpus
-from latent_dialog.data_loaders import DealDataLoaders
+from latent_dialog.dealta_loaders import DealDataLoaders
 from latent_dialog.evaluators import BleuEvaluator
 from latent_dialog.models_deal import CatHRED
 from latent_dialog.models_checklist import Checklist
