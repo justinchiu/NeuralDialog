@@ -2,7 +2,6 @@ import torch as th
 import torch.nn as nn
 from torch.autograd import Variable
 from latent_dialog.base_models import BaseModel
-from latent_dialog.models_deal import HRED
 from latent_dialog.corpora import SYS, EOS, PAD
 from latent_dialog.utils import INT, FLOAT, LONG, Pack
 from latent_dialog.enc2dec.encoders import EncoderRNN, RnnUttEncoder, MlpGoalEncoder
@@ -15,9 +14,80 @@ import latent_dialog.criterions as criterions
 import numpy as np
 
 
-class Hmm(HRED):
+class Hmm(BaseModel):
     def __init__(self, corpus, config):
-        super(Hmm, self).__init__(corpus, config)
+        super(Hmm, self).__init__(config)
+
+        self.vocab = corpus.vocab
+        self.vocab_dict = corpus.vocab_dict
+        self.vocab_size = len(self.vocab)
+        self.goal_vocab = corpus.goal_vocab
+        self.goal_vocab_dict = corpus.goal_vocab_dict
+        self.goal_vocab_size = len(self.goal_vocab)
+        self.outcome_vocab = corpus.outcome_vocab
+        self.outcome_vocab_dict = corpus.outcome_vocab_dict
+        self.outcome_vocab_size = len(self.outcome_vocab)
+        self.sys_id = self.vocab_dict[SYS]
+        self.eos_id = self.vocab_dict[EOS]
+        self.pad_id = self.vocab_dict[PAD]
+
+        self.goal_encoder = MlpGoalEncoder(goal_vocab_size=self.goal_vocab_size,
+                                           k=config.k,
+                                           nembed=config.goal_embed_size,
+                                           nhid=config.goal_nhid,
+                                           init_range=config.init_range)
+
+        self.embedding = nn.Embedding(self.vocab_size, config.embed_size, padding_idx=self.pad_id)
+        self.utt_encoder = RnnUttEncoder(vocab_size=self.vocab_size,
+                                         embedding_dim=config.embed_size,
+                                         feat_size=1,
+                                         goal_nhid=config.goal_nhid,
+                                         rnn_cell=config.utt_rnn_cell,
+                                         utt_cell_size=config.utt_cell_size,
+                                         num_layers=config.num_layers,
+                                         input_dropout_p=config.dropout,
+                                         output_dropout_p=config.dropout,
+                                         bidirectional=config.bi_utt_cell,
+                                         variable_lengths=False,
+                                         use_attn=config.enc_use_attn,
+                                         embedding=self.embedding)
+
+        self.ctx_encoder = EncoderRNN(input_dropout_p=0.0,
+                                      rnn_cell=config.ctx_rnn_cell,
+                                      # input_size=self.utt_encoder.output_size+config.goal_nhid, 
+                                      input_size=self.utt_encoder.output_size,
+                                      hidden_size=config.ctx_cell_size,
+                                      num_layers=config.num_layers,
+                                      output_dropout_p=config.dropout,
+                                      bidirectional=config.bi_ctx_cell,
+                                      variable_lengths=False)
+
+        # TODO connector
+        if config.bi_ctx_cell:
+            self.connector = Bi2UniConnector(rnn_cell=config.ctx_rnn_cell,
+                                             num_layer=1,
+                                             hidden_size=config.ctx_cell_size,
+                                             output_size=config.dec_cell_size)
+        else:
+            self.connector = IdentityConnector()
+
+        self.decoder = DecoderRNN(input_dropout_p=config.dropout,
+                                  rnn_cell=config.dec_rnn_cell,
+                                  input_size=config.embed_size + config.goal_nhid + 64,
+                                  hidden_size=config.dec_cell_size,
+                                  num_layers=config.num_layers,
+                                  output_dropout_p=config.dropout,
+                                  bidirectional=False,
+                                  vocab_size=self.vocab_size,
+                                  use_attn=config.dec_use_attn,
+                                  ctx_cell_size=self.ctx_encoder.output_size,
+                                  attn_mode=config.dec_attn_mode,
+                                  sys_id=self.sys_id,
+                                  eos_id=self.eos_id,
+                                  use_gpu=config.use_gpu,
+                                  max_dec_len=config.max_dec_len,
+                                  embedding=self.embedding)
+        self.nll = NLLEntropy(self.pad_id, config.avg_type)
 
         self.z_embedding = nn.Embedding(config.z_size, config.dec_cell_size)
         self.z_size = config.z_size
@@ -29,7 +99,7 @@ class Hmm(HRED):
         self.prior_res_layer = nn_lib.ResidualLayer(config.ctx_cell_size, 64)
 
     def hmm_potentials(self, emb, ctx, lengths=None, dlg_lens=None):
-        # (a) - [a,b] - (b), then transpose potentials later for torch_struct
+        # (a) - [a,b] - (b)
         phi_pzt = th.einsum("nzh,nh->nz", emb, ctx)
         transition_matrix = th.einsum("nac,nbc->nab", emb + ctx.unsqueeze(1), emb)
         if lengths is not None:
@@ -39,13 +109,13 @@ class Hmm(HRED):
                     .repeat(N, 1) < lengths.unsqueeze(-1)
             )
             phi_pzt = phi_pzt.masked_fill(mask, float("-inf"))
-            #transition_matrix1 = transition_matrix.masked_fill(mask.unsqueeze(-2), float("-inf"))
             transition_matrix = transition_matrix.masked_fill(mask.unsqueeze(-2), -1e12)
-        #return pz0.log_softmax(-1), transition_matrix.log_softmax(-1).transpose(-2, -1)
-        #return pz0, transition_matrix.transpose(-2, -1)
         return phi_pzt, transition_matrix
 
-    def forward(self, data_feed, mode, clf=False, gen_type='greedy', use_py=None, return_latent=False):
+    def forward(
+        self, data_feed, mode, clf=False, gen_type='greedy',
+        use_py=None, return_latent=False,
+    ):
         ctx_lens = data_feed['context_lens']  # (batch_size, )
         ctx_utts = self.np2var(data_feed['contexts'], LONG)  # (batch_size, max_ctx_len, max_utt_len)
         ctx_confs = self.np2var(data_feed['context_confs'], FLOAT)  # (batch_size, max_ctx_len)
@@ -101,13 +171,16 @@ class Hmm(HRED):
         dec_init_state = enc_last.repeat(1, self.z_size, 1)
         dec_outputs, dec_hidden_state, ret_dict = self.decoder(
             batch_size = batch_size,
-            dec_inputs = dec_inputs.repeat(1, self.z_size, 1).view(-1, T), # (batch_size, response_s            dec_inputs = dec_inputs, # (batch_size, response_size-1)
+            dec_inputs = dec_inputs.repeat(1, self.z_size, 1).view(-1, T), # (batch_size, response_size-1)
             dec_init_state = dec_init_state,  # tuple: (h, c)
             attn_context = None, # (batch_size, max_ctx_len, ctx_cell_size)
             mode = mode,
             gen_type = gen_type,
             beam_size = self.config.beam_size,
-            goal_hid = (goals_h.unsqueeze(1) + state_emb).view(-1, H),  # (batch_size, goal_nhid)
+            goal_hid = th.cat([
+                goals_h.unsqueeze(1).expand_as(state_emb),
+                state_emb,
+            ], -1).view(-1, 2*H),  # (batch_size, goal_nhid)
         )
 
         BLAM, T, V = dec_outputs.shape
@@ -147,6 +220,7 @@ class Hmm(HRED):
                 logp_xt.append(
                     (logp_xt_zt[t] + prev_zt).logsumexp(-1)
                 )
+
         logp_xt = th.stack(logp_xt)
         if self.nll.avg_type == "real_word":
             nll = -(logp_xt / (labels.sign().sum(-1).float())).mean()
@@ -166,5 +240,4 @@ class Hmm(HRED):
 
     # for decoding when negotiating
     def z2dec(self, last_h, requires_grad):
-        import pdb; pdb.set_trace()
         raise NotImplementedError("not adapted yet")
