@@ -1,0 +1,1567 @@
+[START]
+2019-12-06-02-20-58
+==============================
+HmmVal (
+  (goal_encoder): MlpGoalEncoder(
+    (cnt_enc): Embedding(12, 64)
+    (val_enc): Embedding(12, 64)
+    (encoder): Sequential(
+      (0): Tanh()
+      (1): Linear(in_features=192, out_features=64, bias=True)
+    )
+  ), parameters=13888
+  (embedding): Embedding(2542, 256, padding_idx=0), parameters=650752
+  (utt_encoder): RnnUttEncoder(
+    (embedding): Embedding(2542, 256, padding_idx=0)
+    (rnn): EncoderRNN(
+      (input_dropout): Dropout(p=0.3, inplace=False)
+      (rnn): GRU(321, 128, batch_first=True, dropout=0.3, bidirectional=True)
+    )
+  ), parameters=997120
+  (ctx_encoder): EncoderRNN(
+    (input_dropout): Dropout(p=0.0, inplace=False)
+    (rnn): GRU(256, 256, batch_first=True, dropout=0.3)
+  ), parameters=394752
+  (connector): IdentityConnector(), parameters=0
+  (decoder): DecoderRNN(
+    (input_dropout): Dropout(p=0.3, inplace=False)
+    (rnn): GRU(384, 256, batch_first=True, dropout=0.3)
+    (embedding): Embedding(2542, 256, padding_idx=0)
+    (project): Linear(in_features=256, out_features=2542, bias=True)
+  ), parameters=1797102
+  (nll): NLLEntropy(), parameters=0
+  (z_embedding): Embedding(128, 256), parameters=32768
+  (book_emb): Embedding(11, 32), parameters=352
+  (hat_emb): Embedding(11, 32), parameters=352
+  (ball_emb): Embedding(11, 32), parameters=352
+  (res_layer): ResidualLayer(
+    (lin1): Linear(in_features=96, out_features=64, bias=True)
+    (lin2): Linear(in_features=64, out_features=64, bias=True)
+    (layer_norm): LayerNorm((64,), eps=1e-05, elementwise_affine=True)
+  ), parameters=10496
+  (w_pz0): Linear(in_features=64, out_features=64, bias=False), parameters=4096
+  (prior_res_layer): ResidualLayer(
+    (lin1): Linear(in_features=256, out_features=64, bias=True)
+    (lin2): Linear(in_features=64, out_features=64, bias=True)
+    (layer_norm): LayerNorm((64,), eps=1e-05, elementwise_affine=True)
+  ), parameters=20736
+) Total Parameters=3922766
+***** Training Begins at 2019-12-06 02-21-02 *****
+***** Epoch 0/100 *****
+100/400-(0.000): Train nll PPL 48.069
+200/400-(0.000): Train nll PPL 21.661
+300/400-(0.000): Train nll PPL 16.589
+0/400-(0.000): Train nll PPL 16.046
+Checkpoint step at 2019-12-06 02-21-12
+==== Evaluating Model ====
+Train nll PPL 22.945
+done epoch 0 -> 1
+Val nll PPL 14.526
+Total valid loss = 2.675909038399418
+Test nll PPL 14.463
+Total valid loss = 2.6715597739237795
+Update patience to 10
+!!Model Saved with loss = 2.675909038399418,at 2019-12-06 02-21-18.
+
+***** Epoch 1/100 *****
+100/400-(0.000): Train nll PPL 16.687
+200/400-(0.000): Train nll PPL 14.825
+300/400-(0.000): Train nll PPL 14.860
+0/400-(0.000): Train nll PPL 14.576
+Checkpoint step at 2019-12-06 02-21-29
+==== Evaluating Model ====
+Train nll PPL 15.215
+done epoch 1 -> 2
+Val nll PPL 12.940
+Total valid loss = 2.560285181137029
+Test nll PPL 12.825
+Total valid loss = 2.5514070901580634
+Update patience to 10
+!!Model Saved with loss = 2.560285181137029,at 2019-12-06 02-21-35.
+
+***** Epoch 2/100 *****
+100/400-(0.000): Train nll PPL 14.051
+200/400-(0.000): Train nll PPL 14.442
+300/400-(0.000): Train nll PPL 14.316
+0/400-(0.000): Train nll PPL 12.872
+Checkpoint step at 2019-12-06 02-21-45
+==== Evaluating Model ====
+Train nll PPL 13.906
+done epoch 2 -> 3
+Val nll PPL 11.833
+Total valid loss = 2.4708586196617888
+Test nll PPL 11.620
+Total valid loss = 2.452721054563051
+Update patience to 10
+!!Model Saved with loss = 2.4708586196617888,at 2019-12-06 02-21-51.
+
+***** Epoch 3/100 *****
+100/400-(0.000): Train nll PPL 13.307
+200/400-(0.000): Train nll PPL 13.085
+300/400-(0.000): Train nll PPL 12.532
+0/400-(0.000): Train nll PPL 12.928
+Checkpoint step at 2019-12-06 02-22-03
+==== Evaluating Model ====
+Train nll PPL 12.960
+done epoch 3 -> 4
+Val nll PPL 11.344
+Total valid loss = 2.4286881056219007
+Test nll PPL 11.115
+Total valid loss = 2.408339886157685
+Update patience to 10
+!!Model Saved with loss = 2.4286881056219007,at 2019-12-06 02-22-08.
+
+***** Epoch 4/100 *****
+100/400-(0.000): Train nll PPL 12.345
+200/400-(0.000): Train nll PPL 11.683
+300/400-(0.000): Train nll PPL 12.335
+0/400-(0.000): Train nll PPL 11.398
+Checkpoint step at 2019-12-06 02-22-19
+==== Evaluating Model ====
+Train nll PPL 11.933
+done epoch 4 -> 5
+Val nll PPL 10.976
+Total valid loss = 2.3956730717662515
+Test nll PPL 10.755
+Total valid loss = 2.3753456720381183
+Update patience to 10
+!!Model Saved with loss = 2.3956730717662515,at 2019-12-06 02-22-24.
+
+***** Epoch 5/100 *****
+100/400-(0.000): Train nll PPL 12.111
+200/400-(0.000): Train nll PPL 12.067
+300/400-(0.000): Train nll PPL 11.653
+0/400-(0.000): Train nll PPL 11.705
+Checkpoint step at 2019-12-06 02-22-35
+==== Evaluating Model ====
+Train nll PPL 11.882
+done epoch 5 -> 6
+Val nll PPL 10.518
+Total valid loss = 2.3530953607875924
+Test nll PPL 10.392
+Total valid loss = 2.341071552196836
+Update patience to 12.0
+!!Model Saved with loss = 2.3530953607875924,at 2019-12-06 02-22-41.
+
+***** Epoch 6/100 *****
+100/400-(0.000): Train nll PPL 11.062
+200/400-(0.000): Train nll PPL 10.232
+300/400-(0.000): Train nll PPL 10.255
+0/400-(0.000): Train nll PPL 10.743
+Checkpoint step at 2019-12-06 02-22-51
+==== Evaluating Model ====
+Train nll PPL 10.568
+done epoch 6 -> 7
+Val nll PPL 10.240
+Total valid loss = 2.3262650320010874
+Test nll PPL 10.198
+Total valid loss = 2.322147136858661
+Update patience to 14.0
+!!Model Saved with loss = 2.3262650320010874,at 2019-12-06 02-22-57.
+
+***** Epoch 7/100 *****
+100/400-(0.000): Train nll PPL 10.628
+200/400-(0.000): Train nll PPL 10.122
+300/400-(0.000): Train nll PPL 10.955
+0/400-(0.000): Train nll PPL 9.962
+Checkpoint step at 2019-12-06 02-23-08
+==== Evaluating Model ====
+Train nll PPL 10.409
+done epoch 7 -> 8
+Val nll PPL 10.091
+Total valid loss = 2.3116546660331783
+Test nll PPL 9.948
+Total valid loss = 2.297382588395601
+Update patience to 16.0
+!!Model Saved with loss = 2.3116546660331783,at 2019-12-06 02-23-13.
+
+***** Epoch 8/100 *****
+100/400-(0.000): Train nll PPL 10.574
+200/400-(0.000): Train nll PPL 10.009
+300/400-(0.000): Train nll PPL 10.875
+0/400-(0.000): Train nll PPL 10.399
+Checkpoint step at 2019-12-06 02-23-24
+==== Evaluating Model ====
+Train nll PPL 10.459
+done epoch 8 -> 9
+Val nll PPL 9.865
+Total valid loss = 2.288997008791709
+Test nll PPL 9.732
+Total valid loss = 2.275386591827915
+Update patience to 18.0
+!!Model Saved with loss = 2.288997008791709,at 2019-12-06 02-23-30.
+
+***** Epoch 9/100 *****
+100/400-(0.000): Train nll PPL 11.671
+200/400-(0.000): Train nll PPL 10.843
+300/400-(0.000): Train nll PPL 11.167
+0/400-(0.000): Train nll PPL 9.653
+Checkpoint step at 2019-12-06 02-23-41
+==== Evaluating Model ====
+Train nll PPL 10.807
+done epoch 9 -> 10
+Val nll PPL 9.694
+Total valid loss = 2.2714796743709664
+Test nll PPL 9.515
+Total valid loss = 2.2529113700634626
+Update patience to 20.0
+!!Model Saved with loss = 2.2714796743709664,at 2019-12-06 02-23-46.
+
+***** Epoch 10/100 *****
+100/400-(0.000): Train nll PPL 10.256
+200/400-(0.000): Train nll PPL 10.510
+300/400-(0.000): Train nll PPL 9.752
+0/400-(0.000): Train nll PPL 9.575
+Checkpoint step at 2019-12-06 02-23-58
+==== Evaluating Model ====
+Train nll PPL 10.016
+done epoch 10 -> 11
+Val nll PPL 9.746
+Total valid loss = 2.276865627053039
+Test nll PPL 9.560
+Total valid loss = 2.2575775285184156
+
+***** Epoch 11/100 *****
+100/400-(0.000): Train nll PPL 9.617
+200/400-(0.000): Train nll PPL 9.983
+300/400-(0.000): Train nll PPL 10.232
+0/400-(0.000): Train nll PPL 10.079
+Checkpoint step at 2019-12-06 02-24-15
+==== Evaluating Model ====
+Train nll PPL 9.975
+done epoch 11 -> 12
+Val nll PPL 9.090
+Total valid loss = 2.2072036305916707
+Test nll PPL 8.929
+Total valid loss = 2.1892991283547287
+Update patience to 24.0
+!!Model Saved with loss = 2.2072036305916707,at 2019-12-06 02-24-20.
+
+***** Epoch 12/100 *****
+100/400-(0.000): Train nll PPL 9.293
+200/400-(0.000): Train nll PPL 10.811
+300/400-(0.000): Train nll PPL 8.901
+0/400-(0.000): Train nll PPL 9.898
+Checkpoint step at 2019-12-06 02-24-32
+==== Evaluating Model ====
+Train nll PPL 9.699
+done epoch 12 -> 13
+Val nll PPL 8.721
+Total valid loss = 2.165683734241007
+Test nll PPL 8.564
+Total valid loss = 2.1475575548161117
+Update patience to 26.0
+!!Model Saved with loss = 2.165683734241007,at 2019-12-06 02-24-37.
+
+***** Epoch 13/100 *****
+100/400-(0.000): Train nll PPL 8.856
+200/400-(0.000): Train nll PPL 8.687
+300/400-(0.000): Train nll PPL 8.988
+0/400-(0.000): Train nll PPL 8.802
+Checkpoint step at 2019-12-06 02-24-49
+==== Evaluating Model ====
+Train nll PPL 8.833
+done epoch 13 -> 14
+Val nll PPL 8.477
+Total valid loss = 2.137360489236473
+Test nll PPL 8.322
+Total valid loss = 2.118847011160035
+Update patience to 28.0
+!!Model Saved with loss = 2.137360489236473,at 2019-12-06 02-24-54.
+
+***** Epoch 14/100 *****
+100/400-(0.000): Train nll PPL 8.347
+200/400-(0.000): Train nll PPL 9.280
+300/400-(0.000): Train nll PPL 8.454
+0/400-(0.000): Train nll PPL 8.816
+Checkpoint step at 2019-12-06 02-25-06
+==== Evaluating Model ====
+Train nll PPL 8.717
+done epoch 14 -> 15
+Val nll PPL 8.397
+Total valid loss = 2.1278273168525135
+Test nll PPL 8.253
+Total valid loss = 2.110566863089007
+Update patience to 30.0
+!!Model Saved with loss = 2.1278273168525135,at 2019-12-06 02-25-11.
+
+***** Epoch 15/100 *****
+100/400-(0.000): Train nll PPL 9.107
+200/400-(0.000): Train nll PPL 8.275
+300/400-(0.000): Train nll PPL 8.745
+0/400-(0.000): Train nll PPL 8.567
+Checkpoint step at 2019-12-06 02-25-22
+==== Evaluating Model ====
+Train nll PPL 8.668
+done epoch 15 -> 16
+Val nll PPL 8.266
+Total valid loss = 2.1121486546368615
+Test nll PPL 8.132
+Total valid loss = 2.0958682706600813
+Update patience to 32.0
+!!Model Saved with loss = 2.1121486546368615,at 2019-12-06 02-25-28.
+
+***** Epoch 16/100 *****
+100/400-(0.000): Train nll PPL 8.752
+200/400-(0.000): Train nll PPL 8.028
+300/400-(0.000): Train nll PPL 8.248
+0/400-(0.000): Train nll PPL 7.662
+Checkpoint step at 2019-12-06 02-25-39
+==== Evaluating Model ====
+Train nll PPL 8.163
+done epoch 16 -> 17
+Val nll PPL 8.171
+Total valid loss = 2.100588430117857
+Test nll PPL 8.028
+Total valid loss = 2.082906335478953
+Update patience to 34.0
+!!Model Saved with loss = 2.100588430117857,at 2019-12-06 02-25-44.
+
+***** Epoch 17/100 *****
+100/400-(0.000): Train nll PPL 8.522
+200/400-(0.000): Train nll PPL 8.898
+300/400-(0.000): Train nll PPL 8.604
+0/400-(0.000): Train nll PPL 8.346
+Checkpoint step at 2019-12-06 02-25-56
+==== Evaluating Model ====
+Train nll PPL 8.590
+done epoch 17 -> 18
+Val nll PPL 8.114
+Total valid loss = 2.0936455304332324
+Test nll PPL 7.933
+Total valid loss = 2.0710816904619165
+!!Model Saved with loss = 2.0936455304332324,at 2019-12-06 02-26-02.
+
+***** Epoch 18/100 *****
+100/400-(0.000): Train nll PPL 9.276
+200/400-(0.000): Train nll PPL 8.881
+300/400-(0.000): Train nll PPL 9.041
+0/400-(0.000): Train nll PPL 7.789
+Checkpoint step at 2019-12-06 02-26-13
+==== Evaluating Model ====
+Train nll PPL 8.727
+done epoch 18 -> 19
+Val nll PPL 8.031
+Total valid loss = 2.08328886181666
+Test nll PPL 7.844
+Total valid loss = 2.05978718275353
+Update patience to 38.0
+!!Model Saved with loss = 2.08328886181666,at 2019-12-06 02-26-19.
+
+***** Epoch 19/100 *****
+100/400-(0.000): Train nll PPL 7.365
+200/400-(0.000): Train nll PPL 7.866
+300/400-(0.000): Train nll PPL 7.242
+0/400-(0.000): Train nll PPL 7.940
+Checkpoint step at 2019-12-06 02-26-30
+==== Evaluating Model ====
+Train nll PPL 7.597
+done epoch 19 -> 20
+Val nll PPL 8.011
+Total valid loss = 2.0808431840470796
+Test nll PPL 7.841
+Total valid loss = 2.059390287888821
+!!Model Saved with loss = 2.0808431840470796,at 2019-12-06 02-26-36.
+
+***** Epoch 20/100 *****
+100/400-(0.000): Train nll PPL 7.246
+200/400-(0.000): Train nll PPL 8.244
+300/400-(0.000): Train nll PPL 8.469
+0/400-(0.000): Train nll PPL 7.468
+Checkpoint step at 2019-12-06 02-26-47
+==== Evaluating Model ====
+Train nll PPL 7.840
+done epoch 20 -> 21
+Val nll PPL 8.028
+Total valid loss = 2.082982682873842
+Test nll PPL 7.863
+Total valid loss = 2.062138376580445
+
+***** Epoch 21/100 *****
+100/400-(0.000): Train nll PPL 7.493
+200/400-(0.000): Train nll PPL 7.481
+300/400-(0.000): Train nll PPL 7.668
+0/400-(0.000): Train nll PPL 8.064
+Checkpoint step at 2019-12-06 02-27-04
+==== Evaluating Model ====
+Train nll PPL 7.673
+done epoch 21 -> 22
+Val nll PPL 7.893
+Total valid loss = 2.0659327276078536
+Test nll PPL 7.776
+Total valid loss = 2.0510927529389416
+Update patience to 44.0
+!!Model Saved with loss = 2.0659327276078536,at 2019-12-06 02-27-10.
+
+***** Epoch 22/100 *****
+100/400-(0.000): Train nll PPL 8.193
+200/400-(0.000): Train nll PPL 8.153
+300/400-(0.000): Train nll PPL 8.074
+0/400-(0.000): Train nll PPL 8.395
+Checkpoint step at 2019-12-06 02-27-22
+==== Evaluating Model ====
+Train nll PPL 8.203
+done epoch 22 -> 23
+Val nll PPL 7.868
+Total valid loss = 2.062774671179782
+Test nll PPL 7.703
+Total valid loss = 2.0415569521175136
+!!Model Saved with loss = 2.062774671179782,at 2019-12-06 02-27-27.
+
+***** Epoch 23/100 *****
+100/400-(0.000): Train nll PPL 8.339
+200/400-(0.000): Train nll PPL 7.892
+300/400-(0.000): Train nll PPL 8.339
+0/400-(0.000): Train nll PPL 8.112
+Checkpoint step at 2019-12-06 02-27-39
+==== Evaluating Model ====
+Train nll PPL 8.168
+done epoch 23 -> 24
+Val nll PPL 7.740
+Total valid loss = 2.046403067798192
+Test nll PPL 7.593
+Total valid loss = 2.0272726006380957
+Update patience to 48.0
+!!Model Saved with loss = 2.046403067798192,at 2019-12-06 02-27-45.
+
+***** Epoch 24/100 *****
+100/400-(0.000): Train nll PPL 7.342
+200/400-(0.000): Train nll PPL 7.997
+300/400-(0.000): Train nll PPL 8.327
+0/400-(0.000): Train nll PPL 8.320
+Checkpoint step at 2019-12-06 02-27-57
+==== Evaluating Model ====
+Train nll PPL 7.986
+done epoch 24 -> 25
+Val nll PPL 7.825
+Total valid loss = 2.0573479214277652
+Test nll PPL 7.632
+Total valid loss = 2.0323263819226747
+
+***** Epoch 25/100 *****
+100/400-(0.000): Train nll PPL 8.954
+200/400-(0.000): Train nll PPL 7.192
+300/400-(0.000): Train nll PPL 7.782
+0/400-(0.000): Train nll PPL 6.962
+Checkpoint step at 2019-12-06 02-28-14
+==== Evaluating Model ====
+Train nll PPL 7.686
+done epoch 25 -> 26
+Val nll PPL 7.764
+Total valid loss = 2.0494877594863357
+Test nll PPL 7.641
+Total valid loss = 2.0335399148128785
+
+***** Epoch 26/100 *****
+100/400-(0.000): Train nll PPL 7.351
+200/400-(0.000): Train nll PPL 7.576
+300/400-(0.000): Train nll PPL 6.784
+0/400-(0.000): Train nll PPL 7.421
+Checkpoint step at 2019-12-06 02-28-31
+==== Evaluating Model ====
+Train nll PPL 7.277
+done epoch 26 -> 27
+Val nll PPL 7.533
+Total valid loss = 2.019272895316796
+Test nll PPL 7.389
+Total valid loss = 1.9999411917458016
+Update patience to 54.0
+!!Model Saved with loss = 2.019272895316796,at 2019-12-06 02-28-37.
+
+***** Epoch 27/100 *****
+100/400-(0.000): Train nll PPL 7.395
+200/400-(0.000): Train nll PPL 7.204
+300/400-(0.000): Train nll PPL 7.429
+0/400-(0.000): Train nll PPL 7.201
+Checkpoint step at 2019-12-06 02-28-48
+==== Evaluating Model ====
+Train nll PPL 7.307
+done epoch 27 -> 28
+Val nll PPL 7.468
+Total valid loss = 2.0106045999650144
+Test nll PPL 7.320
+Total valid loss = 1.9905789818600557
+Update patience to 56.0
+!!Model Saved with loss = 2.0106045999650144,at 2019-12-06 02-28-54.
+
+***** Epoch 28/100 *****
+100/400-(0.000): Train nll PPL 6.746
+200/400-(0.000): Train nll PPL 7.252
+300/400-(0.000): Train nll PPL 7.486
+0/400-(0.000): Train nll PPL 7.099
+Checkpoint step at 2019-12-06 02-29-05
+==== Evaluating Model ====
+Train nll PPL 7.141
+done epoch 28 -> 29
+Val nll PPL 7.417
+Total valid loss = 2.0038048655784437
+Test nll PPL 7.268
+Total valid loss = 1.983418148053463
+!!Model Saved with loss = 2.0038048655784437,at 2019-12-06 02-29-11.
+
+***** Epoch 29/100 *****
+100/400-(0.000): Train nll PPL 6.679
+200/400-(0.000): Train nll PPL 6.446
+300/400-(0.000): Train nll PPL 7.494
+0/400-(0.000): Train nll PPL 7.872
+Checkpoint step at 2019-12-06 02-29-23
+==== Evaluating Model ====
+Train nll PPL 7.099
+done epoch 29 -> 30
+Val nll PPL 7.383
+Total valid loss = 1.9991953999793837
+Test nll PPL 7.230
+Total valid loss = 1.978203815199123
+Update patience to 60.0
+!!Model Saved with loss = 1.9991953999793837,at 2019-12-06 02-29-29.
+
+***** Epoch 30/100 *****
+100/400-(0.000): Train nll PPL 6.561
+200/400-(0.000): Train nll PPL 7.075
+300/400-(0.000): Train nll PPL 6.669
+0/400-(0.000): Train nll PPL 7.243
+Checkpoint step at 2019-12-06 02-29-40
+==== Evaluating Model ====
+Train nll PPL 6.881
+done epoch 30 -> 31
+Val nll PPL 7.352
+Total valid loss = 1.9949424774884297
+Test nll PPL 7.195
+Total valid loss = 1.973435278627809
+!!Model Saved with loss = 1.9949424774884297,at 2019-12-06 02-29-46.
+
+***** Epoch 31/100 *****
+100/400-(0.000): Train nll PPL 7.228
+200/400-(0.000): Train nll PPL 6.799
+300/400-(0.000): Train nll PPL 7.432
+0/400-(0.000): Train nll PPL 6.566
+Checkpoint step at 2019-12-06 02-29-57
+==== Evaluating Model ====
+Train nll PPL 6.998
+done epoch 31 -> 32
+Val nll PPL 7.334
+Total valid loss = 1.9925256855373452
+Test nll PPL 7.180
+Total valid loss = 1.97127076337546
+!!Model Saved with loss = 1.9925256855373452,at 2019-12-06 02-30-04.
+
+***** Epoch 32/100 *****
+100/400-(0.000): Train nll PPL 7.330
+200/400-(0.000): Train nll PPL 6.669
+300/400-(0.000): Train nll PPL 6.473
+0/400-(0.000): Train nll PPL 7.158
+Checkpoint step at 2019-12-06 02-30-14
+==== Evaluating Model ====
+Train nll PPL 6.899
+done epoch 32 -> 33
+Val nll PPL 7.319
+Total valid loss = 1.9905044130733531
+Test nll PPL 7.160
+Total valid loss = 1.9685276603970692
+Update patience to 66.0
+!!Model Saved with loss = 1.9905044130733531,at 2019-12-06 02-30-20.
+
+***** Epoch 33/100 *****
+100/400-(0.000): Train nll PPL 6.452
+200/400-(0.000): Train nll PPL 6.808
+300/400-(0.000): Train nll PPL 6.866
+0/400-(0.000): Train nll PPL 6.925
+Checkpoint step at 2019-12-06 02-30-30
+==== Evaluating Model ====
+Train nll PPL 6.760
+done epoch 33 -> 34
+Val nll PPL 7.319
+Total valid loss = 1.990422104557502
+Test nll PPL 7.160
+Total valid loss = 1.9684415144612128
+!!Model Saved with loss = 1.990422104557502,at 2019-12-06 02-30-35.
+
+***** Epoch 34/100 *****
+100/400-(0.000): Train nll PPL 6.513
+200/400-(0.000): Train nll PPL 6.692
+300/400-(0.000): Train nll PPL 7.156
+0/400-(0.000): Train nll PPL 6.695
+Checkpoint step at 2019-12-06 02-30-46
+==== Evaluating Model ====
+Train nll PPL 6.760
+done epoch 34 -> 35
+Val nll PPL 7.307
+Total valid loss = 1.9888390588584421
+Test nll PPL 7.149
+Total valid loss = 1.9670244790755298
+!!Model Saved with loss = 1.9888390588584421,at 2019-12-06 02-30-51.
+
+***** Epoch 35/100 *****
+100/400-(0.000): Train nll PPL 7.602
+200/400-(0.000): Train nll PPL 7.290
+300/400-(0.000): Train nll PPL 7.001
+0/400-(0.000): Train nll PPL 6.894
+Checkpoint step at 2019-12-06 02-31-01
+==== Evaluating Model ====
+Train nll PPL 7.192
+done epoch 35 -> 36
+Val nll PPL 7.292
+Total valid loss = 1.9868463570341413
+Test nll PPL 7.130
+Total valid loss = 1.9643349504742786
+!!Model Saved with loss = 1.9868463570341413,at 2019-12-06 02-31-07.
+
+***** Epoch 36/100 *****
+100/400-(0.000): Train nll PPL 7.098
+200/400-(0.000): Train nll PPL 6.357
+300/400-(0.000): Train nll PPL 6.934
+0/400-(0.000): Train nll PPL 6.758
+Checkpoint step at 2019-12-06 02-31-18
+==== Evaluating Model ====
+Train nll PPL 6.781
+done epoch 36 -> 37
+Val nll PPL 7.292
+Total valid loss = 1.9867939440966533
+Test nll PPL 7.125
+Total valid loss = 1.9636723419559319
+!!Model Saved with loss = 1.9867939440966533,at 2019-12-06 02-31-23.
+
+***** Epoch 37/100 *****
+100/400-(0.000): Train nll PPL 6.492
+200/400-(0.000): Train nll PPL 6.736
+300/400-(0.000): Train nll PPL 6.650
+0/400-(0.000): Train nll PPL 6.611
+Checkpoint step at 2019-12-06 02-31-33
+==== Evaluating Model ====
+Train nll PPL 6.621
+done epoch 37 -> 38
+Val nll PPL 7.275
+Total valid loss = 1.9843882586243409
+Test nll PPL 7.113
+Total valid loss = 1.9619364761127718
+!!Model Saved with loss = 1.9843882586243409,at 2019-12-06 02-31-39.
+
+***** Epoch 38/100 *****
+100/400-(0.000): Train nll PPL 7.163
+200/400-(0.000): Train nll PPL 6.698
+300/400-(0.000): Train nll PPL 6.934
+0/400-(0.000): Train nll PPL 6.502
+Checkpoint step at 2019-12-06 02-31-50
+==== Evaluating Model ====
+Train nll PPL 6.820
+done epoch 38 -> 39
+Val nll PPL 7.268
+Total valid loss = 1.983545851223583
+Test nll PPL 7.100
+Total valid loss = 1.960044974156659
+!!Model Saved with loss = 1.983545851223583,at 2019-12-06 02-31-56.
+
+***** Epoch 39/100 *****
+100/400-(0.000): Train nll PPL 7.260
+200/400-(0.000): Train nll PPL 6.771
+300/400-(0.000): Train nll PPL 6.257
+0/400-(0.000): Train nll PPL 6.606
+Checkpoint step at 2019-12-06 02-32-08
+==== Evaluating Model ====
+Train nll PPL 6.714
+done epoch 39 -> 40
+Val nll PPL 7.268
+Total valid loss = 1.9834158143434137
+Test nll PPL 7.097
+Total valid loss = 1.9596735642436793
+!!Model Saved with loss = 1.9834158143434137,at 2019-12-06 02-32-13.
+
+***** Epoch 40/100 *****
+100/400-(0.000): Train nll PPL 6.674
+200/400-(0.000): Train nll PPL 6.911
+300/400-(0.000): Train nll PPL 6.518
+0/400-(0.000): Train nll PPL 7.177
+Checkpoint step at 2019-12-06 02-32-24
+==== Evaluating Model ====
+Train nll PPL 6.815
+done epoch 40 -> 41
+Val nll PPL 7.244
+Total valid loss = 1.9801064885850321
+Test nll PPL 7.079
+Total valid loss = 1.9570742186031413
+Update patience to 82.0
+!!Model Saved with loss = 1.9801064885850321,at 2019-12-06 02-32-29.
+
+***** Epoch 41/100 *****
+100/400-(0.000): Train nll PPL 6.416
+200/400-(0.000): Train nll PPL 6.450
+300/400-(0.000): Train nll PPL 6.928
+0/400-(0.000): Train nll PPL 6.182
+Checkpoint step at 2019-12-06 02-32-39
+==== Evaluating Model ====
+Train nll PPL 6.489
+done epoch 41 -> 42
+Val nll PPL 7.243
+Total valid loss = 1.9800692365618209
+Test nll PPL 7.074
+Total valid loss = 1.956459497997516
+!!Model Saved with loss = 1.9800692365618209,at 2019-12-06 02-32-45.
+
+***** Epoch 42/100 *****
+100/400-(0.000): Train nll PPL 6.201
+200/400-(0.000): Train nll PPL 6.520
+300/400-(0.000): Train nll PPL 7.034
+0/400-(0.000): Train nll PPL 6.453
+Checkpoint step at 2019-12-06 02-32-55
+==== Evaluating Model ====
+Train nll PPL 6.545
+done epoch 42 -> 43
+Val nll PPL 7.232
+Total valid loss = 1.9784882308372271
+Test nll PPL 7.079
+Total valid loss = 1.9571758286581293
+!!Model Saved with loss = 1.9784882308372271,at 2019-12-06 02-33-00.
+
+***** Epoch 43/100 *****
+100/400-(0.000): Train nll PPL 6.919
+200/400-(0.000): Train nll PPL 6.805
+300/400-(0.000): Train nll PPL 6.382
+0/400-(0.000): Train nll PPL 7.184
+Checkpoint step at 2019-12-06 02-33-11
+==== Evaluating Model ====
+Train nll PPL 6.816
+done epoch 43 -> 44
+Val nll PPL 7.223
+Total valid loss = 1.977279200325153
+Test nll PPL 7.059
+Total valid loss = 1.9543637490544483
+!!Model Saved with loss = 1.977279200325153,at 2019-12-06 02-33-16.
+
+***** Epoch 44/100 *****
+100/400-(0.000): Train nll PPL 7.015
+200/400-(0.000): Train nll PPL 6.038
+300/400-(0.000): Train nll PPL 6.492
+0/400-(0.000): Train nll PPL 6.238
+Checkpoint step at 2019-12-06 02-33-27
+==== Evaluating Model ====
+Train nll PPL 6.436
+done epoch 44 -> 45
+Val nll PPL 7.219
+Total valid loss = 1.9767772799488363
+Test nll PPL 7.058
+Total valid loss = 1.954132149428016
+!!Model Saved with loss = 1.9767772799488363,at 2019-12-06 02-33-32.
+
+***** Epoch 45/100 *****
+100/400-(0.000): Train nll PPL 6.431
+200/400-(0.000): Train nll PPL 6.785
+300/400-(0.000): Train nll PPL 6.669
+0/400-(0.000): Train nll PPL 6.851
+Checkpoint step at 2019-12-06 02-33-41
+==== Evaluating Model ====
+Train nll PPL 6.682
+done epoch 45 -> 46
+Val nll PPL 7.219
+Total valid loss = 1.9766864110183011
+Test nll PPL 7.058
+Total valid loss = 1.954146581457595
+!!Model Saved with loss = 1.9766864110183011,at 2019-12-06 02-33-46.
+
+***** Epoch 46/100 *****
+100/400-(0.000): Train nll PPL 6.755
+200/400-(0.000): Train nll PPL 6.484
+300/400-(0.000): Train nll PPL 6.739
+0/400-(0.000): Train nll PPL 6.521
+Checkpoint step at 2019-12-06 02-33-56
+==== Evaluating Model ====
+Train nll PPL 6.624
+done epoch 46 -> 47
+Val nll PPL 7.215
+Total valid loss = 1.9761650777830848
+Test nll PPL 7.050
+Total valid loss = 1.9530594371570833
+!!Model Saved with loss = 1.9761650777830848,at 2019-12-06 02-34-01.
+
+***** Epoch 47/100 *****
+100/400-(0.000): Train nll PPL 6.989
+200/400-(0.000): Train nll PPL 6.921
+300/400-(0.000): Train nll PPL 6.346
+0/400-(0.000): Train nll PPL 6.349
+Checkpoint step at 2019-12-06 02-34-12
+==== Evaluating Model ====
+Train nll PPL 6.644
+done epoch 47 -> 48
+Val nll PPL 7.198
+Total valid loss = 1.9737655232313374
+Test nll PPL 7.039
+Total valid loss = 1.951404228183253
+!!Model Saved with loss = 1.9737655232313374,at 2019-12-06 02-34-17.
+
+***** Epoch 48/100 *****
+100/400-(0.000): Train nll PPL 6.511
+200/400-(0.000): Train nll PPL 7.082
+300/400-(0.000): Train nll PPL 6.749
+0/400-(0.000): Train nll PPL 6.684
+Checkpoint step at 2019-12-06 02-34-27
+==== Evaluating Model ====
+Train nll PPL 6.753
+done epoch 48 -> 49
+Val nll PPL 7.207
+Total valid loss = 1.9749870344281637
+Test nll PPL 7.042
+Total valid loss = 1.9519129887279902
+
+***** Epoch 49/100 *****
+100/400-(0.000): Train nll PPL 6.726
+200/400-(0.000): Train nll PPL 6.281
+300/400-(0.000): Train nll PPL 6.714
+0/400-(0.000): Train nll PPL 6.602
+Checkpoint step at 2019-12-06 02-34-43
+==== Evaluating Model ====
+Train nll PPL 6.578
+done epoch 49 -> 50
+Val nll PPL 7.200
+Total valid loss = 1.9740565920667894
+Test nll PPL 7.048
+Total valid loss = 1.952760922591496
+
+***** Epoch 50/100 *****
+100/400-(0.000): Train nll PPL 6.695
+200/400-(0.000): Train nll PPL 6.328
+300/400-(0.000): Train nll PPL 6.654
+0/400-(0.000): Train nll PPL 6.728
+Checkpoint step at 2019-12-06 02-34-58
+==== Evaluating Model ====
+Train nll PPL 6.599
+done epoch 50 -> 51
+Val nll PPL 7.193
+Total valid loss = 1.9731651557767522
+Test nll PPL 7.039
+Total valid loss = 1.951406372817297
+!!Model Saved with loss = 1.9731651557767522,at 2019-12-06 02-35-03.
+
+***** Epoch 51/100 *****
+100/400-(0.000): Train nll PPL 6.210
+200/400-(0.000): Train nll PPL 6.336
+300/400-(0.000): Train nll PPL 6.651
+0/400-(0.000): Train nll PPL 6.252
+Checkpoint step at 2019-12-06 02-35-12
+==== Evaluating Model ====
+Train nll PPL 6.360
+done epoch 51 -> 52
+Val nll PPL 7.188
+Total valid loss = 1.9723625196302068
+Test nll PPL 7.031
+Total valid loss = 1.9503589911605923
+!!Model Saved with loss = 1.9723625196302068,at 2019-12-06 02-35-17.
+
+***** Epoch 52/100 *****
+100/400-(0.000): Train nll PPL 6.658
+200/400-(0.000): Train nll PPL 6.101
+300/400-(0.000): Train nll PPL 6.219
+0/400-(0.000): Train nll PPL 6.548
+Checkpoint step at 2019-12-06 02-35-28
+==== Evaluating Model ====
+Train nll PPL 6.377
+done epoch 52 -> 53
+Val nll PPL 7.184
+Total valid loss = 1.9718441895013366
+Test nll PPL 7.028
+Total valid loss = 1.9498398501156855
+Update patience to 106.0
+!!Model Saved with loss = 1.9718441895013366,at 2019-12-06 02-35-33.
+
+***** Epoch 53/100 *****
+100/400-(0.000): Train nll PPL 6.545
+200/400-(0.000): Train nll PPL 6.366
+300/400-(0.000): Train nll PPL 6.314
+0/400-(0.000): Train nll PPL 6.419
+Checkpoint step at 2019-12-06 02-35-43
+==== Evaluating Model ====
+Train nll PPL 6.411
+done epoch 53 -> 54
+Val nll PPL 7.183
+Total valid loss = 1.9717518104398382
+Test nll PPL 7.023
+Total valid loss = 1.949235064221879
+!!Model Saved with loss = 1.9717518104398382,at 2019-12-06 02-35-48.
+
+***** Epoch 54/100 *****
+100/400-(0.000): Train nll PPL 6.631
+200/400-(0.000): Train nll PPL 6.311
+300/400-(0.000): Train nll PPL 6.588
+0/400-(0.000): Train nll PPL 6.520
+Checkpoint step at 2019-12-06 02-35-58
+==== Evaluating Model ====
+Train nll PPL 6.511
+done epoch 54 -> 55
+Val nll PPL 7.180
+Total valid loss = 1.9712960165805042
+Test nll PPL 7.020
+Total valid loss = 1.9487269291859617
+!!Model Saved with loss = 1.9712960165805042,at 2019-12-06 02-36-04.
+
+***** Epoch 55/100 *****
+100/400-(0.000): Train nll PPL 6.176
+200/400-(0.000): Train nll PPL 6.671
+300/400-(0.000): Train nll PPL 7.171
+0/400-(0.000): Train nll PPL 6.449
+Checkpoint step at 2019-12-06 02-36-13
+==== Evaluating Model ====
+Train nll PPL 6.607
+done epoch 55 -> 56
+Val nll PPL 7.179
+Total valid loss = 1.9711753332306978
+Test nll PPL 7.019
+Total valid loss = 1.9485596069364948
+!!Model Saved with loss = 1.9711753332306978,at 2019-12-06 02-36-19.
+
+***** Epoch 56/100 *****
+100/400-(0.000): Train nll PPL 6.869
+200/400-(0.000): Train nll PPL 6.553
+300/400-(0.000): Train nll PPL 6.415
+0/400-(0.000): Train nll PPL 6.170
+Checkpoint step at 2019-12-06 02-36-28
+==== Evaluating Model ====
+Train nll PPL 6.497
+done epoch 56 -> 57
+Val nll PPL 7.178
+Total valid loss = 1.9710479693219232
+Test nll PPL 7.016
+Total valid loss = 1.94816115668518
+!!Model Saved with loss = 1.9710479693219232,at 2019-12-06 02-36-34.
+
+***** Epoch 57/100 *****
+100/400-(0.000): Train nll PPL 6.824
+200/400-(0.000): Train nll PPL 6.604
+300/400-(0.000): Train nll PPL 6.386
+0/400-(0.000): Train nll PPL 6.273
+Checkpoint step at 2019-12-06 02-36-44
+==== Evaluating Model ====
+Train nll PPL 6.518
+done epoch 57 -> 58
+Val nll PPL 7.176
+Total valid loss = 1.9708087675245924
+Test nll PPL 7.014
+Total valid loss = 1.9478594749146088
+!!Model Saved with loss = 1.9708087675245924,at 2019-12-06 02-36-49.
+
+***** Epoch 58/100 *****
+100/400-(0.000): Train nll PPL 6.660
+200/400-(0.000): Train nll PPL 6.479
+300/400-(0.000): Train nll PPL 6.454
+0/400-(0.000): Train nll PPL 6.804
+Checkpoint step at 2019-12-06 02-36-58
+==== Evaluating Model ====
+Train nll PPL 6.598
+done epoch 58 -> 59
+Val nll PPL 7.175
+Total valid loss = 1.9705598875605312
+Test nll PPL 7.013
+Total valid loss = 1.9477716974432477
+!!Model Saved with loss = 1.9705598875605312,at 2019-12-06 02-37-04.
+
+***** Epoch 59/100 *****
+100/400-(0.000): Train nll PPL 6.114
+200/400-(0.000): Train nll PPL 6.732
+300/400-(0.000): Train nll PPL 6.747
+0/400-(0.000): Train nll PPL 6.736
+Checkpoint step at 2019-12-06 02-37-13
+==== Evaluating Model ====
+Train nll PPL 6.576
+done epoch 59 -> 60
+Val nll PPL 7.173
+Total valid loss = 1.9703867688390162
+Test nll PPL 7.012
+Total valid loss = 1.94768499081579
+!!Model Saved with loss = 1.9703867688390162,at 2019-12-06 02-37-18.
+
+***** Epoch 60/100 *****
+100/400-(0.000): Train nll PPL 6.479
+200/400-(0.000): Train nll PPL 6.358
+300/400-(0.000): Train nll PPL 6.457
+0/400-(0.000): Train nll PPL 6.230
+Checkpoint step at 2019-12-06 02-37-28
+==== Evaluating Model ====
+Train nll PPL 6.380
+done epoch 60 -> 61
+Val nll PPL 7.174
+Total valid loss = 1.9704020735962364
+Test nll PPL 7.011
+Total valid loss = 1.947466074513845
+
+***** Epoch 61/100 *****
+100/400-(0.000): Train nll PPL 6.647
+200/400-(0.000): Train nll PPL 6.632
+300/400-(0.000): Train nll PPL 6.532
+0/400-(0.000): Train nll PPL 6.282
+Checkpoint step at 2019-12-06 02-37-42
+==== Evaluating Model ====
+Train nll PPL 6.521
+done epoch 61 -> 62
+Val nll PPL 7.173
+Total valid loss = 1.970387806531688
+Test nll PPL 7.011
+Total valid loss = 1.9474380437865457
+
+***** Epoch 62/100 *****
+100/400-(0.000): Train nll PPL 6.550
+200/400-(0.000): Train nll PPL 6.320
+300/400-(0.000): Train nll PPL 6.468
+0/400-(0.000): Train nll PPL 6.520
+Checkpoint step at 2019-12-06 02-37-57
+==== Evaluating Model ====
+Train nll PPL 6.464
+done epoch 62 -> 63
+Val nll PPL 7.173
+Total valid loss = 1.9703496938701925
+Test nll PPL 7.010
+Total valid loss = 1.947407653576521
+!!Model Saved with loss = 1.9703496938701925,at 2019-12-06 02-38-03.
+
+***** Epoch 63/100 *****
+100/400-(0.000): Train nll PPL 6.383
+200/400-(0.000): Train nll PPL 6.305
+300/400-(0.000): Train nll PPL 6.416
+0/400-(0.000): Train nll PPL 6.401
+Checkpoint step at 2019-12-06 02-38-13
+==== Evaluating Model ====
+Train nll PPL 6.376
+done epoch 63 -> 64
+Val nll PPL 7.173
+Total valid loss = 1.970318951949862
+Test nll PPL 7.010
+Total valid loss = 1.9473794358764764
+!!Model Saved with loss = 1.970318951949862,at 2019-12-06 02-38-18.
+
+***** Epoch 64/100 *****
+100/400-(0.000): Train nll PPL 6.800
+200/400-(0.000): Train nll PPL 6.521
+300/400-(0.000): Train nll PPL 6.895
+0/400-(0.000): Train nll PPL 6.214
+Checkpoint step at 2019-12-06 02-38-28
+==== Evaluating Model ====
+Train nll PPL 6.602
+done epoch 64 -> 65
+Val nll PPL 7.173
+Total valid loss = 1.9702701232090207
+Test nll PPL 7.010
+Total valid loss = 1.9473504172531824
+!!Model Saved with loss = 1.9702701232090207,at 2019-12-06 02-38-33.
+
+***** Epoch 65/100 *****
+100/400-(0.000): Train nll PPL 6.409
+200/400-(0.000): Train nll PPL 6.502
+300/400-(0.000): Train nll PPL 6.669
+0/400-(0.000): Train nll PPL 6.294
+Checkpoint step at 2019-12-06 02-38-43
+==== Evaluating Model ====
+Train nll PPL 6.467
+done epoch 65 -> 66
+Val nll PPL 7.173
+Total valid loss = 1.970271168379766
+Test nll PPL 7.010
+Total valid loss = 1.9473494177988726
+
+***** Epoch 66/100 *****
+100/400-(0.000): Train nll PPL 6.968
+200/400-(0.000): Train nll PPL 6.901
+300/400-(0.000): Train nll PPL 6.591
+0/400-(0.000): Train nll PPL 6.402
+Checkpoint step at 2019-12-06 02-38-58
+==== Evaluating Model ====
+Train nll PPL 6.712
+done epoch 66 -> 67
+Val nll PPL 7.173
+Total valid loss = 1.9702691825113614
+Test nll PPL 7.010
+Total valid loss = 1.9473472051747398
+!!Model Saved with loss = 1.9702691825113614,at 2019-12-06 02-39-03.
+
+***** Epoch 67/100 *****
+100/400-(0.000): Train nll PPL 6.113
+200/400-(0.000): Train nll PPL 6.034
+300/400-(0.000): Train nll PPL 6.598
+0/400-(0.000): Train nll PPL 6.929
+Checkpoint step at 2019-12-06 02-39-13
+==== Evaluating Model ====
+Train nll PPL 6.408
+done epoch 67 -> 68
+Val nll PPL 7.173
+Total valid loss = 1.9702690727596353
+Test nll PPL 7.010
+Total valid loss = 1.9473470861920839
+!!Model Saved with loss = 1.9702690727596353,at 2019-12-06 02-39-18.
+
+***** Epoch 68/100 *****
+100/400-(0.000): Train nll PPL 6.568
+200/400-(0.000): Train nll PPL 5.868
+300/400-(0.000): Train nll PPL 6.464
+0/400-(0.000): Train nll PPL 6.307
+Checkpoint step at 2019-12-06 02-39-28
+==== Evaluating Model ====
+Train nll PPL 6.296
+done epoch 68 -> 69
+Val nll PPL 7.173
+Total valid loss = 1.9702689278169752
+Test nll PPL 7.010
+Total valid loss = 1.9473470200150638
+!!Model Saved with loss = 1.9702689278169752,at 2019-12-06 02-39-33.
+
+***** Epoch 69/100 *****
+100/400-(0.000): Train nll PPL 6.904
+200/400-(0.000): Train nll PPL 6.769
+300/400-(0.000): Train nll PPL 6.702
+0/400-(0.000): Train nll PPL 6.994
+Checkpoint step at 2019-12-06 02-39-43
+==== Evaluating Model ====
+Train nll PPL 6.841
+done epoch 69 -> 70
+Val nll PPL 7.173
+Total valid loss = 1.9702688189450226
+Test nll PPL 7.010
+Total valid loss = 1.9473468056196495
+!!Model Saved with loss = 1.9702688189450226,at 2019-12-06 02-39-48.
+
+***** Epoch 70/100 *****
+100/400-(0.000): Train nll PPL 6.675
+200/400-(0.000): Train nll PPL 7.253
+300/400-(0.000): Train nll PPL 6.478
+0/400-(0.000): Train nll PPL 6.464
+Checkpoint step at 2019-12-06 02-39-59
+==== Evaluating Model ====
+Train nll PPL 6.710
+done epoch 70 -> 71
+Val nll PPL 7.173
+Total valid loss = 1.9702685869048002
+Test nll PPL 7.010
+Total valid loss = 1.9473467498677766
+!!Model Saved with loss = 1.9702685869048002,at 2019-12-06 02-40-04.
+
+***** Epoch 71/100 *****
+100/400-(0.000): Train nll PPL 6.602
+200/400-(0.000): Train nll PPL 6.580
+300/400-(0.000): Train nll PPL 6.259
+0/400-(0.000): Train nll PPL 6.956
+Checkpoint step at 2019-12-06 02-40-14
+==== Evaluating Model ====
+Train nll PPL 6.595
+done epoch 71 -> 72
+Val nll PPL 7.173
+Total valid loss = 1.9702684413023102
+Test nll PPL 7.010
+Total valid loss = 1.9473467589331217
+!!Model Saved with loss = 1.9702684413023102,at 2019-12-06 02-40-19.
+
+***** Epoch 72/100 *****
+100/400-(0.000): Train nll PPL 6.812
+200/400-(0.000): Train nll PPL 6.111
+300/400-(0.000): Train nll PPL 6.821
+0/400-(0.000): Train nll PPL 6.687
+Checkpoint step at 2019-12-06 02-40-29
+==== Evaluating Model ====
+Train nll PPL 6.601
+done epoch 72 -> 73
+Val nll PPL 7.173
+Total valid loss = 1.9702682004643541
+Test nll PPL 7.010
+Total valid loss = 1.9473465216477108
+!!Model Saved with loss = 1.9702682004643541,at 2019-12-06 02-40-34.
+
+***** Epoch 73/100 *****
+100/400-(0.000): Train nll PPL 6.590
+200/400-(0.000): Train nll PPL 6.293
+300/400-(0.000): Train nll PPL 6.137
+0/400-(0.000): Train nll PPL 6.679
+Checkpoint step at 2019-12-06 02-40-44
+==== Evaluating Model ====
+Train nll PPL 6.421
+done epoch 73 -> 74
+Val nll PPL 7.173
+Total valid loss = 1.9702681659332502
+Test nll PPL 7.010
+Total valid loss = 1.9473463679901093
+!!Model Saved with loss = 1.9702681659332502,at 2019-12-06 02-40-49.
+
+***** Epoch 74/100 *****
+100/400-(0.000): Train nll PPL 6.546
+200/400-(0.000): Train nll PPL 6.367
+300/400-(0.000): Train nll PPL 6.347
+0/400-(0.000): Train nll PPL 6.040
+Checkpoint step at 2019-12-06 02-40-59
+==== Evaluating Model ====
+Train nll PPL 6.322
+done epoch 74 -> 75
+Val nll PPL 7.173
+Total valid loss = 1.9702682429134186
+Test nll PPL 7.010
+Total valid loss = 1.9473463328618967
+
+***** Epoch 75/100 *****
+100/400-(0.000): Train nll PPL 6.180
+200/400-(0.000): Train nll PPL 5.990
+300/400-(0.000): Train nll PPL 6.411
+0/400-(0.000): Train nll PPL 6.637
+Checkpoint step at 2019-12-06 02-41-14
+==== Evaluating Model ====
+Train nll PPL 6.300
+done epoch 75 -> 76
+Val nll PPL 7.173
+Total valid loss = 1.9702679598463417
+Test nll PPL 7.010
+Total valid loss = 1.9473462802828945
+!!Model Saved with loss = 1.9702679598463417,at 2019-12-06 02-41-19.
+
+***** Epoch 76/100 *****
+100/400-(0.000): Train nll PPL 6.079
+200/400-(0.000): Train nll PPL 6.327
+300/400-(0.000): Train nll PPL 6.118
+0/400-(0.000): Train nll PPL 6.905
+Checkpoint step at 2019-12-06 02-41-29
+==== Evaluating Model ====
+Train nll PPL 6.349
+done epoch 76 -> 77
+Val nll PPL 7.173
+Total valid loss = 1.970267971723282
+Test nll PPL 7.010
+Total valid loss = 1.9473462381290392
+
+***** Epoch 77/100 *****
+100/400-(0.000): Train nll PPL 6.707
+200/400-(0.000): Train nll PPL 5.946
+300/400-(0.000): Train nll PPL 5.593
+0/400-(0.000): Train nll PPL 6.892
+Checkpoint step at 2019-12-06 02-41-44
+==== Evaluating Model ====
+Train nll PPL 6.262
+done epoch 77 -> 78
+Val nll PPL 7.173
+Total valid loss = 1.9702679686440754
+Test nll PPL 7.010
+Total valid loss = 1.9473462109330035
+
+***** Epoch 78/100 *****
+100/400-(0.000): Train nll PPL 6.536
+200/400-(0.000): Train nll PPL 6.572
+300/400-(0.000): Train nll PPL 6.322
+0/400-(0.000): Train nll PPL 6.355
+Checkpoint step at 2019-12-06 02-42-00
+==== Evaluating Model ====
+Train nll PPL 6.446
+done epoch 78 -> 79
+Val nll PPL 7.173
+Total valid loss = 1.9702677559588668
+Test nll PPL 7.010
+Total valid loss = 1.9473459011248309
+!!Model Saved with loss = 1.9702677559588668,at 2019-12-06 02-42-05.
+
+***** Epoch 79/100 *****
+100/400-(0.000): Train nll PPL 7.347
+200/400-(0.000): Train nll PPL 6.205
+300/400-(0.000): Train nll PPL 6.567
+0/400-(0.000): Train nll PPL 6.819
+Checkpoint step at 2019-12-06 02-42-15
+==== Evaluating Model ====
+Train nll PPL 6.722
+done epoch 79 -> 80
+Val nll PPL 7.173
+Total valid loss = 1.9702673818352479
+Test nll PPL 7.010
+Total valid loss = 1.9473456094473487
+!!Model Saved with loss = 1.9702673818352479,at 2019-12-06 02-42-20.
+
+***** Epoch 80/100 *****
+100/400-(0.000): Train nll PPL 7.063
+200/400-(0.000): Train nll PPL 6.434
+300/400-(0.000): Train nll PPL 6.495
+0/400-(0.000): Train nll PPL 6.632
+Checkpoint step at 2019-12-06 02-42-30
+==== Evaluating Model ====
+Train nll PPL 6.652
+done epoch 80 -> 81
+Val nll PPL 7.173
+Total valid loss = 1.970267272303465
+Test nll PPL 7.010
+Total valid loss = 1.9473454857053865
+!!Model Saved with loss = 1.970267272303465,at 2019-12-06 02-42-36.
+
+***** Epoch 81/100 *****
+100/400-(0.000): Train nll PPL 6.594
+200/400-(0.000): Train nll PPL 6.381
+300/400-(0.000): Train nll PPL 5.963
+0/400-(0.000): Train nll PPL 6.598
+Checkpoint step at 2019-12-06 02-42-46
+==== Evaluating Model ====
+Train nll PPL 6.379
+done epoch 81 -> 82
+Val nll PPL 7.173
+Total valid loss = 1.970267212478877
+Test nll PPL 7.010
+Total valid loss = 1.947345389839361
+!!Model Saved with loss = 1.970267212478877,at 2019-12-06 02-42-51.
+
+***** Epoch 82/100 *****
+100/400-(0.000): Train nll PPL 6.490
+200/400-(0.000): Train nll PPL 6.972
+300/400-(0.000): Train nll PPL 6.438
+0/400-(0.000): Train nll PPL 6.582
+Checkpoint step at 2019-12-06 02-43-00
+==== Evaluating Model ====
+Train nll PPL 6.617
+done epoch 82 -> 83
+Val nll PPL 7.173
+Total valid loss = 1.9702671267009748
+Test nll PPL 7.010
+Total valid loss = 1.9473452130651292
+!!Model Saved with loss = 1.9702671267009748,at 2019-12-06 02-43-05.
+
+***** Epoch 83/100 *****
+100/400-(0.000): Train nll PPL 6.754
+200/400-(0.000): Train nll PPL 6.746
+300/400-(0.000): Train nll PPL 6.668
+0/400-(0.000): Train nll PPL 6.461
+Checkpoint step at 2019-12-06 02-43-15
+==== Evaluating Model ====
+Train nll PPL 6.656
+done epoch 83 -> 84
+Val nll PPL 7.173
+Total valid loss = 1.9702669054379762
+Test nll PPL 7.010
+Total valid loss = 1.9473448354935012
+!!Model Saved with loss = 1.9702669054379762,at 2019-12-06 02-43-20.
+
+***** Epoch 84/100 *****
+100/400-(0.000): Train nll PPL 6.669
+200/400-(0.000): Train nll PPL 6.377
+300/400-(0.000): Train nll PPL 6.738
+0/400-(0.000): Train nll PPL 6.370
+Checkpoint step at 2019-12-06 02-43-30
+==== Evaluating Model ====
+Train nll PPL 6.536
+done epoch 84 -> 85
+Val nll PPL 7.173
+Total valid loss = 1.970266815041264
+Test nll PPL 7.010
+Total valid loss = 1.94734478110143
+!!Model Saved with loss = 1.970266815041264,at 2019-12-06 02-43-36.
+
+***** Epoch 85/100 *****
+100/400-(0.000): Train nll PPL 6.776
+200/400-(0.000): Train nll PPL 6.646
+300/400-(0.000): Train nll PPL 6.516
+0/400-(0.000): Train nll PPL 6.051
+Checkpoint step at 2019-12-06 02-43-45
+==== Evaluating Model ====
+Train nll PPL 6.492
+done epoch 85 -> 86
+Val nll PPL 7.173
+Total valid loss = 1.970266681975544
+Test nll PPL 7.010
+Total valid loss = 1.9473448060311291
+!!Model Saved with loss = 1.970266681975544,at 2019-12-06 02-43-51.
+
+***** Epoch 86/100 *****
+100/400-(0.000): Train nll PPL 6.532
+200/400-(0.000): Train nll PPL 5.949
+300/400-(0.000): Train nll PPL 6.217
+0/400-(0.000): Train nll PPL 6.236
+Checkpoint step at 2019-12-06 02-44-00
+==== Evaluating Model ====
+Train nll PPL 6.230
+done epoch 86 -> 87
+Val nll PPL 7.173
+Total valid loss = 1.9702665398921473
+Test nll PPL 7.010
+Total valid loss = 1.9473445005289955
+!!Model Saved with loss = 1.9702665398921473,at 2019-12-06 02-44-06.
+
+***** Epoch 87/100 *****
+100/400-(0.000): Train nll PPL 6.555
+200/400-(0.000): Train nll PPL 6.255
+300/400-(0.000): Train nll PPL 6.321
+0/400-(0.000): Train nll PPL 6.081
+Checkpoint step at 2019-12-06 02-44-16
+==== Evaluating Model ====
+Train nll PPL 6.301
+done epoch 87 -> 88
+Val nll PPL 7.173
+Total valid loss = 1.9702664580732254
+Test nll PPL 7.010
+Total valid loss = 1.9473444814917706
+!!Model Saved with loss = 1.9702664580732254,at 2019-12-06 02-44-21.
+
+***** Epoch 88/100 *****
+100/400-(0.000): Train nll PPL 6.990
+200/400-(0.000): Train nll PPL 6.100
+300/400-(0.000): Train nll PPL 7.265
+0/400-(0.000): Train nll PPL 6.521
+Checkpoint step at 2019-12-06 02-44-32
+==== Evaluating Model ====
+Train nll PPL 6.704
+done epoch 88 -> 89
+Val nll PPL 7.173
+Total valid loss = 1.9702664853461993
+Test nll PPL 7.010
+Total valid loss = 1.947344413275048
+
+***** Epoch 89/100 *****
+100/400-(0.000): Train nll PPL 6.413
+200/400-(0.000): Train nll PPL 6.424
+300/400-(0.000): Train nll PPL 6.758
+0/400-(0.000): Train nll PPL 6.744
+Checkpoint step at 2019-12-06 02-44-47
+==== Evaluating Model ====
+Train nll PPL 6.583
+done epoch 89 -> 90
+Val nll PPL 7.173
+Total valid loss = 1.9702663463420094
+Test nll PPL 7.010
+Total valid loss = 1.9473442349143808
+!!Model Saved with loss = 1.9702663463420094,at 2019-12-06 02-44-53.
+
+***** Epoch 90/100 *****
+100/400-(0.000): Train nll PPL 6.638
+200/400-(0.000): Train nll PPL 6.793
+300/400-(0.000): Train nll PPL 6.441
+0/400-(0.000): Train nll PPL 6.143
+Checkpoint step at 2019-12-06 02-45-03
+==== Evaluating Model ====
+Train nll PPL 6.499
+done epoch 90 -> 91
+Val nll PPL 7.173
+Total valid loss = 1.9702662482472804
+Test nll PPL 7.010
+Total valid loss = 1.9473439896967928
+!!Model Saved with loss = 1.9702662482472804,at 2019-12-06 02-45-08.
+
+***** Epoch 91/100 *****
+100/400-(0.000): Train nll PPL 6.529
+200/400-(0.000): Train nll PPL 6.348
+300/400-(0.000): Train nll PPL 5.940
+0/400-(0.000): Train nll PPL 6.141
+Checkpoint step at 2019-12-06 02-45-19
+==== Evaluating Model ====
+Train nll PPL 6.236
+done epoch 91 -> 92
+Val nll PPL 7.173
+Total valid loss = 1.970266139595271
+Test nll PPL 7.010
+Total valid loss = 1.9473439536620456
+!!Model Saved with loss = 1.970266139595271,at 2019-12-06 02-45-24.
+
+***** Epoch 92/100 *****
+100/400-(0.000): Train nll PPL 6.199
+200/400-(0.000): Train nll PPL 6.849
+300/400-(0.000): Train nll PPL 6.375
+0/400-(0.000): Train nll PPL 6.032
+Checkpoint step at 2019-12-06 02-45-34
+==== Evaluating Model ====
+Train nll PPL 6.357
+done epoch 92 -> 93
+Val nll PPL 7.173
+Total valid loss = 1.9702660181865481
+Test nll PPL 7.010
+Total valid loss = 1.9473436463468428
+!!Model Saved with loss = 1.9702660181865481,at 2019-12-06 02-45-39.
+
+***** Epoch 93/100 *****
+100/400-(0.000): Train nll PPL 6.375
+200/400-(0.000): Train nll PPL 6.418
+300/400-(0.000): Train nll PPL 6.558
+0/400-(0.000): Train nll PPL 6.745
+Checkpoint step at 2019-12-06 02-45-49
+==== Evaluating Model ====
+Train nll PPL 6.523
+done epoch 93 -> 94
+Val nll PPL 7.173
+Total valid loss = 1.9702657984631529
+Test nll PPL 7.010
+Total valid loss = 1.947343543228541
+!!Model Saved with loss = 1.9702657984631529,at 2019-12-06 02-45-54.
+
+***** Epoch 94/100 *****
+100/400-(0.000): Train nll PPL 6.697
+200/400-(0.000): Train nll PPL 6.525
+300/400-(0.000): Train nll PPL 6.674
+0/400-(0.000): Train nll PPL 6.848
+Checkpoint step at 2019-12-06 02-46-03
+==== Evaluating Model ====
+Train nll PPL 6.685
+done epoch 94 -> 95
+Val nll PPL 7.173
+Total valid loss = 1.9702654709675216
+Test nll PPL 7.010
+Total valid loss = 1.9473436912203017
+!!Model Saved with loss = 1.9702654709675216,at 2019-12-06 02-46-09.
+
+***** Epoch 95/100 *****
+100/400-(0.000): Train nll PPL 6.550
+200/400-(0.000): Train nll PPL 6.296
+300/400-(0.000): Train nll PPL 6.222
+0/400-(0.000): Train nll PPL 6.245
+Checkpoint step at 2019-12-06 02-46-18
+==== Evaluating Model ====
+Train nll PPL 6.327
+done epoch 95 -> 96
+Val nll PPL 7.173
+Total valid loss = 1.9702654232398171
+Test nll PPL 7.010
+Total valid loss = 1.9473436066859575
+!!Model Saved with loss = 1.9702654232398171,at 2019-12-06 02-46-23.
+
+***** Epoch 96/100 *****
+100/400-(0.000): Train nll PPL 6.319
+200/400-(0.000): Train nll PPL 6.732
+300/400-(0.000): Train nll PPL 6.914
+0/400-(0.000): Train nll PPL 6.231
+Checkpoint step at 2019-12-06 02-46-33
+==== Evaluating Model ====
+Train nll PPL 6.543
+done epoch 96 -> 97
+Val nll PPL 7.173
+Total valid loss = 1.9702652096748352
+Test nll PPL 7.010
+Total valid loss = 1.947343391837276
+!!Model Saved with loss = 1.9702652096748352,at 2019-12-06 02-46-38.
+
+***** Epoch 97/100 *****
+100/400-(0.000): Train nll PPL 6.312
+200/400-(0.000): Train nll PPL 6.572
+300/400-(0.000): Train nll PPL 6.267
+0/400-(0.000): Train nll PPL 6.162
+Checkpoint step at 2019-12-06 02-46-48
+==== Evaluating Model ====
+Train nll PPL 6.326
+done epoch 97 -> 98
+Val nll PPL 7.173
+Total valid loss = 1.9702651076211262
+Test nll PPL 7.010
+Total valid loss = 1.9473432769340253
+!!Model Saved with loss = 1.9702651076211262,at 2019-12-06 02-46-53.
+
+***** Epoch 98/100 *****
+100/400-(0.000): Train nll PPL 6.933
+200/400-(0.000): Train nll PPL 6.673
+300/400-(0.000): Train nll PPL 6.555
+0/400-(0.000): Train nll PPL 6.544
+Checkpoint step at 2019-12-06 02-47-02
+==== Evaluating Model ====
+Train nll PPL 6.674
+done epoch 98 -> 99
+Val nll PPL 7.173
+Total valid loss = 1.9702650167845273
+Test nll PPL 7.010
+Total valid loss = 1.9473429959083237
+!!Model Saved with loss = 1.9702650167845273,at 2019-12-06 02-47-07.
+
+***** Epoch 99/100 *****
+100/400-(0.000): Train nll PPL 6.655
+200/400-(0.000): Train nll PPL 7.304
+300/400-(0.000): Train nll PPL 6.936
+0/400-(0.000): Train nll PPL 6.612
+Checkpoint step at 2019-12-06 02-47-17
+==== Evaluating Model ====
+Train nll PPL 6.871
+done epoch 99 -> 100
+Val nll PPL 7.173
+Total valid loss = 1.9702648784401673
+Test nll PPL 7.010
+Total valid loss = 1.9473428610613137
+!!Model Saved with loss = 1.9702648784401673,at 2019-12-06 02-47-22.
+Load model 100
+Forward Only Evaluation
+Val nll PPL 22.792
+Total valid loss = 3.126429319381714
+Test nll PPL 22.002
+Total valid loss = 3.091141954064369
+Generation: 32 batches
