@@ -2,6 +2,7 @@ import numpy as np
 from latent_dialog.utils import Pack
 from latent_dialog.base_data_loaders import BaseDataLoaders
 from latent_dialog.corpora import USR, SYS
+from latent_dialog.contexts import get_valid_contexts_ints
 
 from latent_dialog.latents import get_latent_powerset
 
@@ -138,6 +139,7 @@ class DealDataLoaders(BaseDataLoaders):
         ctx_utts, ctx_lens = [], []
         out_utts, out_lens = [], []
         goals, goal_lens = [], []
+        partner_goals_list, num_partner_goals = [], []
         partitions, num_partitions = [], []
 
         # flatten dialogs here
@@ -162,6 +164,11 @@ class DealDataLoaders(BaseDataLoaders):
                 # goal
                 goals.append(goal_row)
                 goal_lens.append(len(goal_row))
+
+                # valid partner goals
+                partner_goals = get_valid_contexts_ints(goal_row)
+                partner_goals_list.append(partner_goals)
+                num_partner_goals.append(len(partner_goals))
 
                 # partitions
                 _partitions = get_latent_powerset(goal_row)
@@ -195,6 +202,13 @@ class DealDataLoaders(BaseDataLoaders):
         self.goal_len = max_goal_len
         vec_goals = np.zeros((effective_batch_size, self.goal_len), dtype=np.int32)
 
+        max_partner_goals = max(num_partner_goals)
+        vec_partner_goals = np.zeros(
+            (effective_batch_size, max_partner_goals, self.goal_len),
+            dtype=np.int32,
+        )
+        vec_num_partner_goal = np.array(num_partner_goals)
+
         # just always pad to 128, makes things easier
         #max_partitions = max(num_partitions)
         max_partitions = 128
@@ -213,6 +227,8 @@ class DealDataLoaders(BaseDataLoaders):
             vec_ctx_utts[b_id, :vec_ctx_lens[b_id], :] = ctx_utts[b_id]
             vec_out_utts[b_id, :vec_out_lens[b_id]] = out_utts[b_id]
             vec_goals[b_id, :] = goals[b_id]
+            for pg_id in range(num_partner_goals[b_id]):
+                vec_partner_goals[b_id, pg_id, :] = partner_goals[b_id][pg_id]
             for p_id in range(num_partitions[b_id]):
                 vec_partitions[b_id, p_id, :] = partitions[b_id][p_id]
 
@@ -223,6 +239,8 @@ class DealDataLoaders(BaseDataLoaders):
             output_lens = vec_out_lens, 
             outputs = vec_out_utts, 
             goals = vec_goals,
+            partner_goals = vec_partner_goals,
+            num_partner_goals = vec_num_partner_goals,
             dlg_idxs = vec_dlg_idxs,
             dlg_lens = vec_dlg_lens,
             partitions = vec_partitions,
