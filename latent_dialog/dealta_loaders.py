@@ -207,7 +207,7 @@ class DealDataLoaders(BaseDataLoaders):
             (effective_batch_size, max_partner_goals, self.goal_len),
             dtype=np.int32,
         )
-        vec_num_partner_goal = np.array(num_partner_goals)
+        vec_num_partner_goals = np.array(num_partner_goals)
 
         # just always pad to 128, makes things easier
         #max_partitions = max(num_partitions)
@@ -228,7 +228,7 @@ class DealDataLoaders(BaseDataLoaders):
             vec_out_utts[b_id, :vec_out_lens[b_id]] = out_utts[b_id]
             vec_goals[b_id, :] = goals[b_id]
             for pg_id in range(num_partner_goals[b_id]):
-                vec_partner_goals[b_id, pg_id, :] = partner_goals[b_id][pg_id]
+                vec_partner_goals[b_id, pg_id, :] = partner_goals_list[b_id][pg_id]
             for p_id in range(num_partitions[b_id]):
                 vec_partitions[b_id, p_id, :] = partitions[b_id][p_id]
 

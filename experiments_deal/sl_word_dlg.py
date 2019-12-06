@@ -122,7 +122,7 @@ if not config.forward_only:
     except KeyboardInterrupt:
         print('Training stopped by keyboard.')
 
-config.batch_size = 32
+config.batch_size = 4
 if best_epoch is None:
     model_ids = sorted([int(p.replace('-model', '')) for p in os.listdir(saved_path) if '-model' in p])
     best_epoch = model_ids[-1]

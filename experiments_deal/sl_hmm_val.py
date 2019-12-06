@@ -8,7 +8,7 @@ from latent_dialog.corpora import DealCorpus
 from latent_dialog.dealta_loaders import DealDataLoaders
 from latent_dialog.evaluators import BleuEvaluator
 from latent_dialog.models_deal import CatHRED
-from latent_dialog.models_hmm import Hmm
+from latent_dialog.models_hmm_val import HmmVal
 from latent_dialog.main import train, validate, generate
 import latent_dialog.domain as domain
 
@@ -113,7 +113,7 @@ test_data = DealDataLoaders('Test', test_dial, config)
 
 evaluator = BleuEvaluator('Deal')
 
-model = Hmm(corpus, config)
+model = HmmVal(corpus, config)
 
 if config.use_gpu:
     model.cuda()
