@@ -3,6 +3,7 @@ import sys
 import numpy as np
 import torch as th
 from torch import nn
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from collections import defaultdict
 from latent_dialog.enc2dec.base_modules import summary
 from latent_dialog.enc2dec.decoders import TEACH_FORCE, GEN, DecoderRNN
@@ -352,6 +353,11 @@ def train(model, train_data, val_data, test_data, config, evaluator, gen=None):
     best_valid_loss = np.inf
     batch_cnt = 0
     optimizer = model.get_optimizer(config)
+    scheduler = ReduceLROnPlateau(
+        optimizer,
+        patience = 1,
+        verbose = True,
+    )
     done_epoch = 0
     best_epoch = 0
     train_loss = LossManager()
@@ -398,6 +404,8 @@ def train(model, train_data, val_data, test_data, config, evaluator, gen=None):
                 # validation
                 valid_loss = validate(model, val_data, config, batch_cnt)
                 _ = validate(model, test_data, config, batch_cnt)
+
+                scheduler.step(valid_loss)
 
                 # update early stopping stats
                 if valid_loss < best_valid_loss:

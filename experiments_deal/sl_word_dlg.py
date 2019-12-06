@@ -1,14 +1,16 @@
 import time
 import os
+import sys
+sys.path.append('../')
 import json
 import torch as th
 import logging
 from latent_dialog.utils import Pack, prepare_dirs_loggers, set_seed
 from latent_dialog.corpora import DealCorpus
+#from latent_dialog.data_loaders import DealDataLoaders
 from latent_dialog.dealta_loaders import DealDataLoaders
 from latent_dialog.evaluators import BleuEvaluator
-from latent_dialog.models_deal import CatHRED
-from latent_dialog.models_hmm import Hmm
+from latent_dialog.models_deal import HRED
 from latent_dialog.main import train, validate, generate
 import latent_dialog.domain as domain
 
@@ -22,27 +24,25 @@ print('[START]', start_time, '='*30)
 domain_name = 'object_division'
 domain_info = domain.get_domain(domain_name)
 
-th.set_anomaly_enabled(True)
-
 config = Pack(
-    train_path = '../data/negotiate/train.txt',
-    val_path = '../data/negotiate/val.txt',
-    test_path = '../data/negotiate/test.txt',
-    last_n_model = 5,
+    random_seed = 10,
+    train_path = '../data/negotiate/train.txt', 
+    val_path = '../data/negotiate/val.txt', 
+    test_path = '../data/negotiate/test.txt', 
+    last_n_model = 4, 
     max_utt_len = 20,
     #backward_size = 14, 
     backward_size = 8, 
-    #backward_size = 1, 
-    #batch_size = 32,
-    batch_size = 4,
-    grad_clip = 10.0,
+    #batch_size = 16, 
+    batch_size = 4, 
     use_gpu = True,
     op = 'adam', 
-    init_lr = 0.001,
-    l2_norm=0.00001,
-    momentum = 0.0, 
-    dropout = 0.3,
-    max_epoch = 50,
+    init_lr = 0.001, 
+    l2_norm = 0.00001, 
+    momentum = 0.0,
+    grad_clip=10.0,
+    dropout = 0.3, 
+    max_epoch = 50, 
     embed_size = 256, 
     num_layers = 1, 
     utt_rnn_cell = 'gru', 
@@ -52,18 +52,13 @@ config = Pack(
     ctx_rnn_cell = 'gru',
     ctx_cell_size = 256,
     bi_ctx_cell = False,
-    z_size = 128,
-    beta = 0.01,
-    simple_posterior=False,
-    use_pr = True,
-    dec_use_attn = False,
+    dec_use_attn = True,
     dec_rnn_cell = 'gru', # must be same as ctx_cell_size due to the passed initial state
-    dec_cell_size = 256,  # must be same as ctx_cell_size due to the passed initial state
+    dec_cell_size = 256, # must be same as ctx_cell_size due to the passed initial state
     dec_attn_mode = 'cat', 
     #
-    fix_train_batch=False,
-    fix_batch=False,
     beam_size = 20,
+    fix_train_batch = False, 
     avg_type = 'real_word',
     print_step = 100,
     ckpt_step = 400,
@@ -73,19 +68,19 @@ config = Pack(
     save_model = True, 
     early_stop = False, 
     gen_type = 'greedy', 
-    preview_batch_num = 1,
+    preview_batch_num = 50, 
     max_dec_len = 40, 
     k = domain_info.input_length(), 
     goal_embed_size = 64, 
     goal_nhid = 64, 
     init_range = 0.1,
-    pretrain_folder = '2018-11-19-21-28-29-sl_latent',
+    pretrain_folder ='2018-11-18-18-56-59',
     forward_only = False,
-    # options for sequence LVMs
+    # different batching style
     seq = True,
 )
 
-set_seed(10)
+set_seed(config.random_seed)
 
 if config.forward_only:
     saved_path = os.path.join(stats_path, config.pretrain_folder)
@@ -115,7 +110,7 @@ test_data = DealDataLoaders('Test', test_dial, config)
 
 evaluator = BleuEvaluator('Deal')
 
-model = Hmm(corpus, config)
+model = HRED(corpus, config)
 
 if config.use_gpu:
     model.cuda()
@@ -123,8 +118,7 @@ if config.use_gpu:
 best_epoch = None
 if not config.forward_only:
     try:
-        #best_epoch = train(model, train_data, val_data, test_data, config, evaluator, gen=generate)
-        best_epoch = train(model, train_data, val_data, test_data, config, evaluator, gen=None)
+        best_epoch = train(model, train_data, val_data, test_data, config, evaluator, gen=generate)
     except KeyboardInterrupt:
         print('Training stopped by keyboard.')
 
@@ -134,8 +128,8 @@ if best_epoch is None:
     best_epoch = model_ids[-1]
 
 model.load_state_dict(th.load(os.path.join(saved_path, '{}-model'.format(best_epoch))))
-logger.info("Load model {}".format(best_epoch))
-logger.info("Forward Only Evaluation")
+
+print("Forward Only Evaluation")
 # run the model on the test dataset
 validate(model, val_data, config)
 validate(model, test_data, config) 
@@ -144,4 +138,4 @@ with open(os.path.join(saved_path, '{}_test_file.txt'.format(start_time)), 'w') 
     generate(model, test_data, config, evaluator, num_batch=None, dest_f=f)
 
 end_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
-logger.info('[END]'+ end_time+ '='*30)
+print('[END]', end_time, '='*30)
