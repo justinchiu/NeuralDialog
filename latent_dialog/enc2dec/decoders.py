@@ -42,9 +42,11 @@ class Attention(nn.Module):
         if self.attn_mode == 'dot':
             attn = th.bmm(output, context.transpose(1, 2)) # (batch_size, output_seq_len, max_ctx_len)
         elif self.attn_mode == 'general':
+            # bilinear
             mapped_output = self.dec_w(output) # (batch_size, output_seq_len, ctx_cell_size)
             attn = th.bmm(mapped_output, context.transpose(1, 2)) # (batch_size, output_seq_len, max_ctx_len)
         elif self.attn_mode == 'cat':
+            # mlp
             mapped_output = self.dec_w(output) # (batch_size, output_seq_len, dec_cell_size)
             mapped_attn = self.attn_w(context) # (batch_size, max_ctx_len, dec_cell_size)
             tiled_output = mapped_output.unsqueeze(2).repeat(1, 1, max_ctx_len, 1) # (batch_size, output_seq_len, max_ctx_len, dec_cell_size)

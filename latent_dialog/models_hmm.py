@@ -45,7 +45,9 @@ class Hmm(BaseModel):
                                            init_range=config.init_range)
 
         self.z_size = config.z_size
-        self.item_emb = nn.Embedding(11, 32)
+        self.book_emb = nn.Embedding(11, 32)
+        self.hat_emb = nn.Embedding(11, 32)
+        self.ball_emb = nn.Embedding(11, 32)
         self.res_layer = nn_lib.ResidualLayer(3 * 32, 64)
         self.w_pz0 = nn.Linear(64, 64, bias=False)
         self.prior_res_layer = nn_lib.ResidualLayer(config.ctx_cell_size, 64)
@@ -118,9 +120,10 @@ class Hmm(BaseModel):
     def valid_loss(self, loss, batch_cnt=None):
         return loss.nll
 
-    # for decoding? 
+    # for decoding when negotiating
     def z2dec(self, last_h, requires_grad):
         import pdb; pdb.set_trace()
+        raise NotImplementedError("not adapted yet")
         logits, log_qy = self.c2z(last_h)
 
         if requires_grad:
@@ -190,15 +193,15 @@ class Hmm(BaseModel):
         dec_inputs = out_utts[:, :-1]
         labels = out_utts[:, 1:].contiguous()
 
-        # TODO: make this directed? then it's an MEMM
-        #logits_pzt, log_pzt = self.c2z(enc_last)
-
-        # encode response and use posterior to find q(z|x, c)
-        #x_h, _, _ = self.utt_encoder(out_utts.unsqueeze(1), goals=goals_h)
-        #logits_qz_t, log_qz_t = self.xc2z(th.cat([enc_last, x_h.squeeze(1).unsqueeze(0)], dim=2))
-
+        # attend over enc_outs
         ctx_input = self.prior_res_layer(enc_last.squeeze(0))
-        state_emb = self.res_layer(self.item_emb(partitions).view(-1, self.z_size, 3 * 32))
+        state_emb = self.res_layer(th.cat([
+            self.book_emb(partitions[:,:,0]),
+            self.hat_emb (partitions[:,:,1]),
+            self.ball_emb(partitions[:,:,2]),
+        ], -1))
+
+
         # REMINDER: psi_zr_zl = psi(z_t, z_t-1) (z right, z left)
         #_, psi_zr_zl= self.hmm_potentials(state_emb, lengths=num_partitions, dlg_lens=data_feed.dlg_lens)
         phi_zt, psi_zl_zr = self.hmm_potentials(state_emb, ctx_input, lengths=num_partitions)
@@ -238,8 +241,6 @@ class Hmm(BaseModel):
         # do linear chain stuff
         # a little weird, we're working with a chain graphical model
         # need to normalize over each zt so the lm probs remain normalized
-        # TODO: are we going to run into numerical stability issues?
-        # might need to pretrain to assign more mass to correct sentences.
         dlg_idxs = data_feed.dlg_idxs
         prev_zt = logp_zt[0]
         logp_xt = [
