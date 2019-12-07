@@ -82,7 +82,7 @@ config = Pack(
     # use oracle context and proposal parse
     #oracle_context = True,
     #oracle_parse = False,
-    oracle_context = False,
+    oracle_context = True,
     oracle_parse = True,
 )
 

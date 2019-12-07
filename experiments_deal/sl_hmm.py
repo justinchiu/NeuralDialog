@@ -78,10 +78,11 @@ config = Pack(
     goal_nhid = 64, 
     init_range = 0.1,
     pretrain_folder = '2019-12-06-02-20-58-sl_hmm',
-    #forward_only = False,
-    forward_only = True,
+    forward_only = False,
+    #forward_only = True,
     # options for sequence LVMs
     seq = True,
+    noisy_proposal_labels = True,
 )
 
 set_seed(10)

@@ -238,7 +238,7 @@ class DealDataLoaders(BaseDataLoaders):
         max_partitions = 128
         vec_partitions = np.zeros(
             # 3 item types
-            (effective_batch_size, max_partitions, 3),
+            (effective_batch_size, max_partitions, 6),
             dtype=np.int32,
         )
         vec_num_partitions = np.array(num_partitions)
