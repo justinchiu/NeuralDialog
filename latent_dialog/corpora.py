@@ -6,6 +6,13 @@ import json
 from nltk.tokenize import WordPunctTokenizer
 import logging
 
+import os
+os.environ["DODPATH"] = "/n/home13/jchiu/python/cocoa/dealornodeal"
+
+from dealornodeal.parse import parse_c
+from latent_dialog.contexts import get_valid_contexts_ints
+from latent_dialog.latents import get_latent_powerset
+
 PAD = '<pad>'
 UNK = '<unk>'
 USR = 'YOU:'
@@ -39,8 +46,10 @@ class DealCorpus(object):
         return self._process_dialogue(data)
 
     def _process_dialogue(self, data):
-        def transform(token_list):
+        def transform(token_list, usr_goal, sys_goal):
             usr, sys = [], []
+            parsed_usr, parsed_sys = [], []
+            num_proposals = 0
             ptr = 0
             while ptr < len(token_list):
                 turn_ptr = ptr
@@ -55,22 +64,57 @@ class DealCorpus(object):
                 all_sent_lens.append(len(turn_list))
                 if turn_list[0] == USR:
                     usr.append(Pack(utt=turn_list, speaker=USR))
+                    # assume usr is agent 0
+                    prop = parse_c(" ".join(turn_list), usr_goal, merge=True).proposal
+                    parsed = [str(x) for x in ([
+                        prop[0]["book"],
+                        prop[0]["hat"],
+                        prop[0]["ball"],
+                        prop[1]["book"],
+                        prop[1]["hat"],
+                        prop[1]["ball"],
+                    ] if prop is not None else [-1] * 6)]
+                    parsed_usr.append(parsed)
+                    num_proposals = num_proposals + 1 if prop is not None else num_proposals
                 elif turn_list[0] == SYS:
                     sys.append(Pack(utt=turn_list, speaker=SYS))
+                    # assume sys is agent 1
+                    prop = parse_c(" ".join(turn_list), sys_goal, merge=True).proposal
+                    parsed = [str(x) for x in ([
+                        prop[1]["book"],
+                        prop[1]["hat"],
+                        prop[1]["ball"],
+                        prop[0]["book"],
+                        prop[0]["hat"],
+                        prop[0]["ball"],
+                    ] if prop is not None else [-1] * 6)]
+                    parsed_sys.append(parsed)
+                    num_proposals = num_proposals + 1 if prop is not None else num_proposals
                 else:
                     raise ValueError('Invalid speaker')
 
             all_dlg_lens.append(len(usr) + len(sys))
-            return usr, sys
+            return usr, sys, parsed_usr, parsed_sys, num_proposals
 
         new_dlg = []
         all_sent_lens = []
         all_dlg_lens = []
+        all_num_proposals = []
         for raw_dlg in data:
             raw_words = raw_dlg.split()
 
+            # process goal (6 digits)
+            # FIXME FATAL ERROR HERE !!!
+            # assumes we are SYS = THEM:
+            cur_goal = raw_words[raw_words.index('<partner_input>') + 1: raw_words.index('</partner_input>')]
+            usr_goal = raw_words[raw_words.index('<input>')+1: raw_words.index('</input>')]
+            if len(cur_goal) != 6:
+                print('FATAL ERROR!!! ({})'.format(cur_goal))
+                exit(-1)
+
             # process dialogue text
             cur_dlg = []
+            cur_parsed_dlg = []
             words = raw_words[raw_words.index('<dialogue>') + 1: raw_words.index('</dialogue>')]
             words += [EOS]
             usr_first = True
@@ -83,26 +127,28 @@ class DealCorpus(object):
             else:
                 print('FATAL ERROR!!! ({})'.format(words))
                 exit(-1)
-            usr_utts, sys_utts = transform(words)
-            for usr_turn, sys_turn in zip(usr_utts, sys_utts):
+            usr_utts, sys_utts, parsed_usr, parsed_sys, num_props = transform(
+                words, usr_goal, cur_goal)
+            all_num_proposals.append(num_props)
+            for usr_turn, sys_turn, parsed_usr_turn, parsed_sys_turn in zip(
+                usr_utts, sys_utts, parsed_usr, parsed_sys,
+            ):
                 if usr_first:
                     cur_dlg.append(usr_turn)
                     cur_dlg.append(sys_turn)
+                    cur_parsed_dlg.append(parsed_usr_turn)
+                    cur_parsed_dlg.append(parsed_sys_turn)
                 else:
                     cur_dlg.append(sys_turn)
                     cur_dlg.append(usr_turn)
+                    cur_parsed_dlg.append(parsed_sys_turn)
+                    cur_parsed_dlg.append(parsed_usr_turn)
             if len(usr_utts) - len(sys_utts) == 1:
                 cur_dlg.append(usr_utts[-1])
+                cur_parsed_dlg.append(parsed_usr[-1])
             elif len(sys_utts) - len(usr_utts) == 1:
                 cur_dlg.append(sys_utts[-1])
-
-            # process goal (6 digits)
-            # FIXME FATAL ERROR HERE !!!
-            cur_goal = raw_words[raw_words.index('<partner_input>') + 1: raw_words.index('</partner_input>')]
-            # cur_goal = raw_words[raw_words.index('<input>')+1: raw_words.index('</input>')]
-            if len(cur_goal) != 6:
-                print('FATAL ERROR!!! ({})'.format(cur_goal))
-                exit(-1)
+                cur_parsed_dlg.append(parsed_sys[-1])
 
             # process outcome (6 tokens)
             cur_out = raw_words[raw_words.index('<output>') + 1: raw_words.index('</output>')]
@@ -110,12 +156,23 @@ class DealCorpus(object):
                 print('FATAL ERROR!!! ({})'.format(cur_out))
                 exit(-1)
 
-            new_dlg.append(Pack(dlg=cur_dlg, goal=cur_goal, out=cur_out))
+            new_dlg.append(Pack(
+                dlg = cur_dlg,
+                goal = cur_goal,
+                usr_goal = usr_goal,
+                out = cur_out,
+                parsed_dlg = cur_parsed_dlg,
+            ))
 
         print('Max utt len = %d, mean utt len = %.2f' % (
             np.max(all_sent_lens), float(np.mean(all_sent_lens))))
         print('Max dlg len = %d, mean dlg len = %.2f' % (
             np.max(all_dlg_lens), float(np.mean(all_dlg_lens))))
+        print('Max num props = %d, mean num props = %.2f, var = %.2f' % (
+            np.max(all_num_proposals),
+            float(np.mean(all_num_proposals)),
+            np.var(all_num_proposals),
+        ))
         return new_dlg
 
     def _extract_vocab(self):
@@ -189,13 +246,28 @@ class DealCorpus(object):
             if len(dlg.dlg) < 1:
                 continue
             id_dlg = []
-            for turn in dlg.dlg:
-                id_turn = Pack(utt=self._sent2id(turn.utt),
-                               speaker=turn.speaker)
+            for turn, parsed_turn in zip(dlg.dlg, dlg.parsed_dlg):
+                id_turn = Pack(
+                    utt = self._sent2id(turn.utt),
+                    speaker = turn.speaker,
+                    parsed = self._goal2id(parsed_turn),
+                )
                 id_dlg.append(id_turn)
             id_goal = self._goal2id(dlg.goal)
             id_out = self._outcome2id(dlg.out)
-            results.append(Pack(dlg=id_dlg, goal=id_goal, out=id_out))
+
+            # data added for debugging and PR
+            id_partner_goal = self._goal2id(dlg.usr_goal)
+
+            results.append(Pack(
+                dlg  = id_dlg,
+                goal = id_goal,
+                out  = id_out,
+                partner_goal = id_partner_goal,
+                valid_partner_goals = get_valid_contexts_ints(id_goal),
+                partitions = get_latent_powerset(id_goal),
+                dlg_text = dlg.dlg,
+            ))
         return results
 
     def _sent2id(self, sent):

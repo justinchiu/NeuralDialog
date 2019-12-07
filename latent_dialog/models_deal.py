@@ -89,7 +89,7 @@ class HRED(BaseModel):
                                   embedding=self.embedding)
         self.nll = NLLEntropy(self.pad_id, config.avg_type)
 
-    def forward(self, data_feed, mode, clf=False, gen_type='greedy', use_py=None, return_latent=False):
+    def forward(self, data_feed, mode, clf=False, gen_type='greedy', use_py=None, return_latent=False, get_marginals=False):
         clf = False
         if not clf:
             ctx_lens = data_feed['context_lens']  # (batch_size, )
@@ -136,6 +136,11 @@ class HRED(BaseModel):
                                                                    beam_size=self.config.beam_size,
                                                                    goal_hid=goals_h)  # (batch_size, goal_nhid)
 
+            if get_marginals:
+                return Pack(
+                    dec_outputs = dec_outputs,
+                    labels = labels,
+                )
             if mode == GEN:
                 return ret_dict, labels
             if return_latent:

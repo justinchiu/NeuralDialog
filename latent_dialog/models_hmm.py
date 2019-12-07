@@ -89,7 +89,6 @@ class Hmm(BaseModel):
                                   embedding=self.embedding)
         self.nll = NLLEntropy(self.pad_id, config.avg_type)
 
-        self.z_embedding = nn.Embedding(config.z_size, config.dec_cell_size)
         self.z_size = config.z_size
         self.book_emb = nn.Embedding(11, 32)
         self.hat_emb = nn.Embedding(11, 32)
@@ -115,6 +114,7 @@ class Hmm(BaseModel):
     def forward(
         self, data_feed, mode, clf=False, gen_type='greedy',
         use_py=None, return_latent=False,
+        get_marginals = False,
     ):
         ctx_lens = data_feed['context_lens']  # (batch_size, )
         ctx_utts = self.np2var(data_feed['contexts'], LONG)  # (batch_size, max_ctx_len, max_utt_len)
@@ -228,6 +228,14 @@ class Hmm(BaseModel):
             nll = -(logp_xt.sum() / labels.sign().sum())
         else:
             raise ValueError("Unknown reduction type")
+
+        if get_marginals:
+            return Pack(
+                dec_outputs = dec_outputs,
+                logp_xt = logp_xt,
+                labels = labels,
+            )
+        #Z = prev_zt.logsumexp(0)
 
         if mode == GEN:
             return ret_dict, labels

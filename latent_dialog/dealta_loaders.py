@@ -55,6 +55,7 @@ class DealDataLoaders(BaseDataLoaders):
         for dlg in data:
             goal = dlg.goal
             context_responses = []
+            parsed_context_responses = []
             for i in range(1, len(dlg.dlg)):
                 if dlg.dlg[i].speaker == USR:
                     continue
@@ -62,11 +63,23 @@ class DealDataLoaders(BaseDataLoaders):
                 s_idx = max(0, e_idx - backward_size)
                 response = dlg.dlg[i].copy()
                 response['utt'] = self.pad_to(self.max_utt_len, response.utt, do_pad=False)
+                parsed_response = response.parsed
                 context = []
+                parsed_context = []
                 for turn in dlg.dlg[s_idx: e_idx]:
                     turn['utt'] = self.pad_to(self.max_utt_len, turn.utt, do_pad=False)
                     context.append(turn)
-                context_responses.append(Pack(context=context, response=response, goal=goal))
+                    parsed_context.append(turn.parsed)
+                context_responses.append(Pack(
+                    context = context,
+                    response = response,
+                    goal = goal,
+                    parsed_context = parsed_context,
+                    parsed_response = parsed_response,
+                    partner_goal = dlg.partner_goal,
+                    valid_partner_goals = dlg.valid_partner_goals,
+                    partitions = dlg.partitions,
+                ))
             results.append(context_responses)
         return results
 
@@ -141,6 +154,9 @@ class DealDataLoaders(BaseDataLoaders):
         goals, goal_lens = [], []
         partner_goals_list, num_partner_goals = [], []
         partitions, num_partitions = [], []
+        true_partner_goals = []
+        parsed_out_utts = []
+        parsed_ctx_utts = []
 
         # flatten dialogs here
         # keep pointers
@@ -166,12 +182,12 @@ class DealDataLoaders(BaseDataLoaders):
                 goal_lens.append(len(goal_row))
 
                 # valid partner goals
-                partner_goals = get_valid_contexts_ints(goal_row)
+                partner_goals = row.partner_goal
                 partner_goals_list.append(partner_goals)
                 num_partner_goals.append(len(partner_goals))
 
                 # partitions
-                _partitions = get_latent_powerset(goal_row)
+                _partitions = row.partitions
                 # list of list of tuples, each tuple is a goal
                 # and the inner list represents all possible partner goals
                 partitions.append(_partitions)
@@ -179,6 +195,13 @@ class DealDataLoaders(BaseDataLoaders):
 
                 # dialog index for getting features in sequence model
                 dlg_idxs.append(i)
+
+                # true partner goal
+                true_partner_goals.append(row.partner_goal)
+
+                # parsed features
+                parsed_out_utts.append(out_row.parsed)
+                parsed_ctx_utts.append([x.parsed for x in row.context])
 
                 dlg_len += 1
 
@@ -200,7 +223,8 @@ class DealDataLoaders(BaseDataLoaders):
             print('FATAL ERROR!')
             exit(-1)
         self.goal_len = max_goal_len
-        vec_goals = np.zeros((effective_batch_size, self.goal_len), dtype=np.int32)
+        #vec_goals = np.zeros((effective_batch_size, self.goal_len), dtype=np.int32)
+        vec_goals = np.array(goals, dtype=np.int32)
 
         max_partner_goals = max(num_partner_goals)
         vec_partner_goals = np.zeros(
@@ -222,15 +246,22 @@ class DealDataLoaders(BaseDataLoaders):
         vec_dlg_idxs = np.array(dlg_idxs, dtype=np.int32)
         vec_dlg_lens = np.array(dlg_lens, dtype=np.int32)
 
+        vec_true_partner_goals = np.array(true_partner_goals, dtype=np.int32)
+        vec_parsed_out_utts = np.array(parsed_out_utts, dtype=np.int32)
+        vec_parsed_ctx_utts = np.ones(
+            (effective_batch_size, max_ctx_len, 6),
+            dtype=np.int32,
+       ) * 11 # [0,10] is taken for values. no numbers exceed 10, 11 is padding
+
         # 
         for b_id in range(effective_batch_size):
             vec_ctx_utts[b_id, :vec_ctx_lens[b_id], :] = ctx_utts[b_id]
             vec_out_utts[b_id, :vec_out_lens[b_id]] = out_utts[b_id]
-            vec_goals[b_id, :] = goals[b_id]
             for pg_id in range(num_partner_goals[b_id]):
                 vec_partner_goals[b_id, pg_id, :] = partner_goals_list[b_id][pg_id]
             for p_id in range(num_partitions[b_id]):
                 vec_partitions[b_id, p_id, :] = partitions[b_id][p_id]
+            vec_parsed_ctx_utts[b_id, :vec_ctx_lens[b_id], :] = parsed_ctx_utts[b_id]
 
         return Pack(
             context_lens = vec_ctx_lens, 
@@ -245,5 +276,9 @@ class DealDataLoaders(BaseDataLoaders):
             dlg_lens = vec_dlg_lens,
             partitions = vec_partitions,
             num_partitions = vec_num_partitions,
+            # oracle values
+            true_partner_goals = vec_true_partner_goals,
+            parsed_contexts = vec_parsed_ctx_utts,
+            parsed_outputs = vec_parsed_out_utts,
         )
 

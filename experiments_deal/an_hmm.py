@@ -9,6 +9,7 @@ from latent_dialog.dealta_loaders import DealDataLoaders
 from latent_dialog.evaluators import BleuEvaluator
 from latent_dialog.models_deal import CatHRED
 from latent_dialog.models_hmm import Hmm
+from latent_dialog.models_deal import HRED
 from latent_dialog.main import train, validate, generate
 import latent_dialog.domain as domain
 
@@ -86,14 +87,9 @@ config = Pack(
 
 set_seed(10)
 
-if config.forward_only:
-    saved_path = os.path.join(stats_path, config.pretrain_folder)
-    config = Pack(json.load(open(os.path.join(saved_path, 'config.json'))))
-    config['forward_only'] = True
-else:
-    saved_path = os.path.join(stats_path, start_time+'-'+os.path.basename(__file__).split('.')[0])
-    if not os.path.exists(saved_path):
-        os.mkdir(saved_path)
+saved_path = os.path.join(stats_path, config.pretrain_folder)
+config = Pack(json.load(open(os.path.join(saved_path, 'config.json'))))
+config['forward_only'] = True
 
 config.saved_path = saved_path
 
@@ -114,7 +110,20 @@ test_data = DealDataLoaders('Test', test_dial, config)
 
 evaluator = BleuEvaluator('Deal')
 
-model = Hmm(corpus, config)
+hmm = Hmm(corpus, config)
+config.pretrain_folder = "2019-12-06-02-20-58-sl_word_dlg_noattn"
+word = HRED(corpus, config)
+hmm.cuda()
+word.cuda()
+
+from latent_dialog.enc2dec.decoders import TEACH_FORCE
+train_data.epoch_init(config)
+batch = train_data.next_batch()
+while batch is not None:
+    batch = train_data.next_batch()
+    hmm_out = hmm(batch, TEACH_FORCE, get_marginals=True)
+    word_out = word(batch, TEACH_FORCE, get_marginals=True)
+    import pdb; pdb.set_trace()
 
 if config.use_gpu:
     model.cuda()
