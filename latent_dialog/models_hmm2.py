@@ -14,6 +14,8 @@ import latent_dialog.criterions as criterions
 import numpy as np
 
 
+import torch_struct as ts
+
 class Hmm(BaseModel):
     def __init__(self, corpus, config):
         super(Hmm, self).__init__(config)
@@ -111,6 +113,9 @@ class Hmm(BaseModel):
         self.w_pz0 = nn.Linear(64, 64, bias=False)
         self.prior_res_layer = nn_lib.ResidualLayer(config.ctx_cell_size, 2*64)
 
+        if self.noisy_proposal_labels:
+            # non-neural parameterization
+            self.noisy_label_proj = nn.Linear(128, 128)
 
     def hmm_potentials(self, emb, emb_out, ctx, lengths=None, dlg_lens=None):
         # (a) - [a,b] - (b)
@@ -139,8 +144,6 @@ class Hmm(BaseModel):
         partitions = self.np2var(data_feed.partitions, LONG)
         num_partitions = self.np2var(data_feed.num_partitions, INT)
         batch_size = len(ctx_lens)
-
-        self.z_size = data_feed.num_partitions.max()
 
         # oracle
         parsed_outputs = self.np2var(data_feed.parsed_outputs, LONG)
@@ -175,7 +178,7 @@ class Hmm(BaseModel):
         dec_init_state = self.connector(enc_last)
 
         # transition matrix
-        ctx_input = self.prior_res_layer(enc_last[-1])
+        ctx_input = self.prior_res_layer(enc_last.squeeze(0))
         my_state_emb = self.res_layer(th.cat([
             self.book_emb(partitions[:,:,0]),
             self.hat_emb (partitions[:,:,1]),
@@ -207,9 +210,8 @@ class Hmm(BaseModel):
         # for noisy labels
         if self.noisy_proposal_labels:
             # transition from state to label
+            logp_label = self.noisy_label_proj(state_emb).log_softmax(-1)
             label_mask = (partitions == parsed_outputs.unsqueeze(1)).all(-1)
-            logp_label_z = th.einsum("nsh,nth->nts", state_emb, state_emb_out).log_softmax(-1)
-            # outer dim t should be output label
 
         phi_zt, psi_zl_zr = self.hmm_potentials(state_emb, state_emb_out, ctx_input, lengths=num_partitions)
         logp_zt = phi_zt.log_softmax(-1)
@@ -219,7 +221,7 @@ class Hmm(BaseModel):
         N, T = dec_inputs.shape
         dec_init_state = enc_last.repeat(1, self.z_size, 1)
         dec_outputs, dec_hidden_state, ret_dict = self.decoder(
-            batch_size = batch_size * self.z_size,
+            batch_size = batch_size,
             dec_inputs = dec_inputs.repeat(1, self.z_size, 1).view(-1, T), # (batch_size, response_size-1)
             dec_init_state = dec_init_state,  # tuple: (h, c)
             attn_context = None, # (batch_size, max_ctx_len, ctx_cell_size)
@@ -247,21 +249,16 @@ class Hmm(BaseModel):
         # a little weird, we're working with a chain graphical model
         # need to normalize over each zt so the lm probs remain normalized
         dlg_idxs = data_feed.dlg_idxs
-        t = 0
-        ll_label = 0
-        prev_zt = logp_zt[t]
-
+        prev_zt = logp_zt[0]
         logp_xt = [
-            (logp_xt_zt[t] + prev_zt).logsumexp(-1)
+            (logp_xt_zt[0] + prev_zt).logsumexp(-1)
         ]
+        ll_label = 0
         if self.training and self.noisy_proposal_labels and label_mask[0].any():
-            if not self.config.sup_proposal_labels:
-                # predict noisy proposal from hidden state
-                ll_label += (
-                    logp_label_z[t] + prev_zt.unsqueeze(-1)
-                ).logsumexp(0)[label_mask[t]].logsumexp(0)
-            else:
-                ll_label += prev_zt[label_mask[t]].logsumexp(0)
+            # predict noisy proposal from hidden state
+            ll_label += (
+                logp_label[0] + prev_zt.unsqueeze(-1)
+            ).logsumexp(0)[label_mask[0]].sum()
         for t in range(1, N):
             if dlg_idxs[t] != dlg_idxs[t-1]:
                 # restart hmm
@@ -277,28 +274,23 @@ class Hmm(BaseModel):
                 logp_xt.append(
                     (logp_xt_zt[t] + prev_zt).logsumexp(-1)
                 )
+            import pdb; pdb.set_trace()
             if self.training and self.noisy_proposal_labels and label_mask[t].any():
-                if not self.config.sup_proposal_labels:
-                    # predict noisy proposal from hidden state
-                    ll_label += (
-                        logp_label_z[t] + prev_zt.unsqueeze(-1)
-                    ).logsumexp(0)[label_mask[t]].logsumexp(0)
-                else:
-                    ll_label += prev_zt[label_mask[t]].logsumexp(0)
+                # predict noisy proposal from hidden state
+                ll_label += (
+                    logp_label[t] + prev_zt.unsqueeze(-1)
+                ).logsumexp(0)[label_mask[t]].sum()
         logp_xt = th.stack(logp_xt)
         if self.nll.avg_type == "real_word":
-            nll_word = -(logp_xt / (labels.sign().sum(-1).float())).mean()
+            nll = -(logp_xt / (labels.sign().sum(-1).float())).mean()
         elif self.nll.avg_type == "word":
-            nll_word = -(logp_xt.sum() / labels.sign().sum())
+            nll = -(logp_xt.sum() / labels.sign().sum())
         else:
             raise ValueError("Unknown reduction type")
 
         if self.training and self.noisy_proposal_labels and label_mask.any():
             #nll -= 0.1 * ll_label / label_mask.sum().float()
-            nll_label = - self.config.label_weight * ll_label / label_mask.any(-1).sum().float()
-        else:
-            nll_label = th.zeros(1).to(nll_word.device)
-
+            nll -= ll_label / label_mask.sum().float()
             #import pdb; pdb.set_trace()
         if get_marginals:
             return Pack(
@@ -307,13 +299,14 @@ class Hmm(BaseModel):
                 labels = labels,
             )
         #Z = prev_zt.logsumexp(0)
+
         if mode == GEN:
             return ret_dict, labels
         if return_latent:
             return Pack(nll=nll,
                         latent_action=dec_init_state)
         else:
-            return Pack(nll_label=nll_label, nll_word=nll_word)
+            return Pack(nll=nll)
 
 
     # for decoding when negotiating

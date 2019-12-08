@@ -42,7 +42,8 @@ config = Pack(
     dropout = 0.3,
     max_epoch = 100,
     embed_size = 256, 
-    num_layers = 1, 
+    #num_layers = 1, 
+    num_layers = 2, 
     utt_rnn_cell = 'gru', 
     utt_cell_size = 128, 
     bi_utt_cell = True, 
@@ -83,6 +84,10 @@ config = Pack(
     # options for sequence LVMs
     seq = True,
     noisy_proposal_labels = True,
+    sup_proposal_labels = False,
+    #sup_proposal_labels = True,
+    #label_weight = 0.1,
+    label_weight = 1,
 )
 
 set_seed(10)

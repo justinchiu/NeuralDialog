@@ -234,8 +234,8 @@ class DealDataLoaders(BaseDataLoaders):
         vec_num_partner_goals = np.array(num_partner_goals)
 
         # just always pad to 128, makes things easier
-        #max_partitions = max(num_partitions)
-        max_partitions = 128
+        max_partitions = max(num_partitions)
+        #max_partitions = 128
         vec_partitions = np.zeros(
             # 3 item types
             (effective_batch_size, max_partitions, 6),

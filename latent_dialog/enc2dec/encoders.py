@@ -102,8 +102,13 @@ class RnnUttEncoder(nn.Module):
         else:
             # FIXME bug for multi-layer
             attn = None
-            utt_embedded = enc_last.transpose(0, 1).contiguous() # (batch_size*max_ctx_lens, num_layers*num_directions, utt_cell_size)
-            utt_embedded = utt_embedded.view(-1, self.output_size) # (batch_size*max_ctx_len*num_layers, num_directions*utt_cell_size)
+            #utt_embedded = enc_last.transpose(0, 1).contiguous() # (batch_size*max_ctx_lens, num_layers*num_directions, utt_cell_size)
+            #utt_embedded = utt_embedded.view(-1, self.output_size) # (batch_size*max_ctx_len*num_layers, num_directions*utt_cell_size)
+            num_layers = self.rnn.rnn.num_layers
+            num_directions = 2 if self.rnn.rnn.bidirectional else 1
+            # get last hidden state
+            utt_embedded = enc_last.view(num_layers, num_directions, batch_size*max_ctx_len, -1)[-1]
+            utt_embedded = utt_embedded.permute(1, 0, 2).contiguous()
 
         utt_embedded = utt_embedded.view(batch_size, max_ctx_len, self.output_size)
         return utt_embedded, word_embeddings.contiguous().view(batch_size, max_ctx_len*max_utt_len, -1), \

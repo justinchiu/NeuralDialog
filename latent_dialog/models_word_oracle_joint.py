@@ -98,7 +98,32 @@ class HRED(BaseModel):
         self.book_emb_out = nn.Embedding(16, 32)
         self.hat_emb_out = nn.Embedding(16, 32)
         self.ball_emb_out = nn.Embedding(16, 32)
-        self.res_layer_out = nn_lib.ResidualLayer(3 * 32, 64)
+        self.res_layer_out = nn_lib.ResidualLayer(3 * 32, 128)
+
+        self.prop_utt_encoder = RnnUttEncoder(vocab_size=self.vocab_size,
+                                         embedding_dim=config.embed_size,
+                                         feat_size=1,
+                                         goal_nhid=config.goal_nhid,
+                                         rnn_cell=config.utt_rnn_cell,
+                                         utt_cell_size=config.utt_cell_size,
+                                         num_layers=config.num_layers,
+                                         input_dropout_p=config.dropout,
+                                         output_dropout_p=config.dropout,
+                                         bidirectional=config.bi_utt_cell,
+                                         variable_lengths=False,
+                                         use_attn=config.enc_use_attn,
+                                         embedding=self.embedding)
+
+        self.prop_ctx_encoder = EncoderRNN(input_dropout_p=0.0,
+                                      rnn_cell=config.ctx_rnn_cell,
+                                      # input_size=self.utt_encoder.output_size+config.goal_nhid, 
+                                      input_size=self.utt_encoder.output_size,
+                                      hidden_size=config.ctx_cell_size,
+                                      num_layers=config.num_layers,
+                                      output_dropout_p=config.dropout,
+                                      bidirectional=config.bi_ctx_cell,
+                                      variable_lengths=False)
+
 
         self.w_pz0 = nn.Linear(64, 64, bias=False)
         self.prior_res_layer = nn_lib.ResidualLayer(config.ctx_cell_size, 64)
@@ -131,6 +156,8 @@ class HRED(BaseModel):
             # c_n: (num_layers*num_directions, batch_size, ctx_cell_size)
             enc_outs, enc_last = self.ctx_encoder(enc_inputs, input_lengths=ctx_lens, goals=None)
 
+            partitions = self.np2var(data_feed.partitions, LONG)
+            num_partitions = self.np2var(data_feed.num_partitions, INT)
             # oracle input
             partner_goals = self.np2var(data_feed.true_partner_goals, LONG)
             parsed_outputs = self.np2var(data_feed.parsed_outputs, LONG)
@@ -149,19 +176,50 @@ class HRED(BaseModel):
             ], -1))
 
             if self.config.oracle_context and self.config.oracle_parse:
-                goals_h = self.res_goal_mlp(th.cat([
+                big_goals_h = self.res_goal_mlp(th.cat([
                     goals_h, partner_goals_h, my_state_emb, your_state_emb,
                 ], -1))
             elif self.config.oracle_context:
-                goals_h = self.res_goal_mlp(th.cat([
+                big_goals_h = self.res_goal_mlp(th.cat([
                     goals_h, partner_goals_h,
                 ], -1))
             elif self.config.oracle_parse:
-                goals_h = self.res_goal_mlp(th.cat([
+                big_goals_h = self.res_goal_mlp(th.cat([
                     goals_h, my_state_emb, your_state_emb,
                 ], -1))
 
-            # get decoder inputs
+
+            # proposal prediction
+            prop_enc_inputs, _, _ = self.prop_utt_encoder(ctx_utts, feats=ctx_confs,
+                                                goals=goals_h)  # (batch_size, max_ctx_len, num_directions*utt_cell_size)
+
+            # enc_outs: (batch_size, max_ctx_len, ctx_cell_size)
+            # enc_last: tuple, (h_n, c_n)
+            # h_n: (num_layers*num_directions, batch_size, ctx_cell_size)
+            # c_n: (num_layers*num_directions, batch_size, ctx_cell_size)
+            prop_enc_outs, prop_enc_last = self.prop_ctx_encoder(enc_inputs, input_lengths=ctx_lens, goals=None)
+
+            my_state_emb_out = self.res_layer_out(th.cat([
+                self.book_emb_out(partitions[:,:,0]),
+                self.hat_emb_out (partitions[:,:,1]),
+                self.ball_emb_out(partitions[:,:,2]),
+            ], -1))
+            your_state_emb_out = self.res_layer_out(th.cat([
+                self.book_emb_out(partitions[:,:,3]),
+                self.hat_emb_out (partitions[:,:,4]),
+                self.ball_emb_out(partitions[:,:,5]),
+            ], -1))
+            state_emb_out = th.cat([my_state_emb_out, your_state_emb_out], -1)
+
+            label_mask = (partitions == parsed_outputs.unsqueeze(1)).all(-1)
+            logits_label = th.einsum("nsh,nh->ns", state_emb_out, prop_enc_last[-1])
+            mask = ~(
+                th.arange(partitions.shape[1], device = num_partitions.device, dtype = num_partitions.dtype)
+                    .repeat(partitions.shape[0], 1) < num_partitions.unsqueeze(-1)
+            )
+            logp_label = logits_label.masked_fill(mask, float("-inf")).log_softmax(-1)# get decoder inputs
+            nll_label = -logp_label[label_mask].mean()
+
             dec_inputs = out_utts[:, :-1]
             labels = out_utts[:, 1:].contiguous()
 
@@ -186,7 +244,7 @@ class HRED(BaseModel):
                 gen_type=gen_type,
                 beam_size=self.config.beam_size,
                 # my goal, your goal, and the proposal!!! a lot
-                goal_hid=goals_h,
+                goal_hid=big_goals_h,
             )  # (batch_size, goal_nhid)
 
             if get_marginals:
@@ -200,6 +258,6 @@ class HRED(BaseModel):
                 return Pack(nll=self.nll(dec_outputs, labels),
                             latent_action=dec_init_state)
             else:
-                return Pack(nll=self.nll(dec_outputs, labels))
+                return Pack(nll=self.nll(dec_outputs, labels), nll_label = nll_label)
 
 

@@ -10,7 +10,7 @@ from latent_dialog.corpora import DealCorpus
 #from latent_dialog.data_loaders import DealDataLoaders
 from latent_dialog.dealta_loaders import DealDataLoaders
 from latent_dialog.evaluators import BleuEvaluator
-from latent_dialog.models_word_oracle import HRED
+from latent_dialog.models_word_joint import HRED
 from latent_dialog.main import train, validate, generate
 import latent_dialog.domain as domain
 
@@ -44,8 +44,8 @@ config = Pack(
     dropout = 0.3, 
     max_epoch = 50, 
     embed_size = 256, 
-    #num_layers = 1, 
-    num_layers = 2, 
+    num_layers = 1, 
+    #num_layers = 2, 
     utt_rnn_cell = 'gru', 
     utt_cell_size = 128, 
     bi_utt_cell = True, 
@@ -125,7 +125,8 @@ if config.use_gpu:
 best_epoch = None
 if not config.forward_only:
     try:
-        best_epoch = train(model, train_data, val_data, test_data, config, evaluator, gen=generate)
+        #best_epoch = train(model, train_data, val_data, test_data, config, evaluator, gen=generate)
+        best_epoch = train(model, train_data, val_data, test_data, config, evaluator, gen=None)
     except KeyboardInterrupt:
         print('Training stopped by keyboard.')
 

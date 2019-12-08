@@ -14,9 +14,9 @@ import latent_dialog.criterions as criterions
 import numpy as np
 
 
-class Hmm(BaseModel):
+class HRED(BaseModel):
     def __init__(self, corpus, config):
-        super(Hmm, self).__init__(config)
+        super(HRED, self).__init__(config)
 
         self.vocab = corpus.vocab
         self.vocab_dict = corpus.vocab_dict
@@ -73,7 +73,7 @@ class Hmm(BaseModel):
 
         self.decoder = DecoderRNN(input_dropout_p=config.dropout,
                                   rnn_cell=config.dec_rnn_cell,
-                                  input_size=config.embed_size + config.goal_nhid + 64,
+                                  input_size=config.embed_size + 2*config.goal_nhid,
                                   hidden_size=config.dec_cell_size,
                                   num_layers=config.num_layers,
                                   output_dropout_p=config.dropout,
@@ -89,13 +89,7 @@ class Hmm(BaseModel):
                                   embedding=self.embedding)
         self.nll = NLLEntropy(self.pad_id, config.avg_type)
 
-
-        # new hmm stuff
-        self.noisy_proposal_labels = config.noisy_proposal_labels
-         
-        self.z_size = config.z_size
-
-        # for the transition matrix
+        # oracle modules
         self.book_emb = nn.Embedding(16, 32)
         self.hat_emb = nn.Embedding(16, 32)
         self.ball_emb = nn.Embedding(16, 32)
@@ -104,56 +98,50 @@ class Hmm(BaseModel):
         self.book_emb_out = nn.Embedding(16, 32)
         self.hat_emb_out = nn.Embedding(16, 32)
         self.ball_emb_out = nn.Embedding(16, 32)
-        self.res_layer_out = nn_lib.ResidualLayer(3 * 32, 64)
+        self.res_layer_out = nn_lib.ResidualLayer(3 * 32, 128)
 
-        self.res_goal_mlp = nn_lib.ResidualLayer(64 * 3, 64 * 2)
+        self.prop_utt_encoder = RnnUttEncoder(vocab_size=self.vocab_size,
+                                         embedding_dim=config.embed_size,
+                                         feat_size=1,
+                                         goal_nhid=config.goal_nhid,
+                                         rnn_cell=config.utt_rnn_cell,
+                                         utt_cell_size=config.utt_cell_size,
+                                         num_layers=config.num_layers,
+                                         input_dropout_p=config.dropout,
+                                         output_dropout_p=config.dropout,
+                                         bidirectional=config.bi_utt_cell,
+                                         variable_lengths=False,
+                                         use_attn=config.enc_use_attn,
+                                         embedding=self.embedding)
+
+        self.prop_ctx_encoder = EncoderRNN(input_dropout_p=0.0,
+                                      rnn_cell=config.ctx_rnn_cell,
+                                      # input_size=self.utt_encoder.output_size+config.goal_nhid, 
+                                      input_size=self.utt_encoder.output_size,
+                                      hidden_size=config.ctx_cell_size,
+                                      num_layers=config.num_layers,
+                                      output_dropout_p=config.dropout,
+                                      bidirectional=config.bi_ctx_cell,
+                                      variable_lengths=False)
+
 
         self.w_pz0 = nn.Linear(64, 64, bias=False)
-        self.prior_res_layer = nn_lib.ResidualLayer(config.ctx_cell_size, 2*64)
+        self.prior_res_layer = nn_lib.ResidualLayer(config.ctx_cell_size, 64)
+        self.res_goal_mlp = nn_lib.ResidualLayer(256 + config.goal_nhid, 128)
 
-
-    def hmm_potentials(self, emb, emb_out, ctx, lengths=None, dlg_lens=None):
-        # (a) - [a,b] - (b)
-        phi_pzt = th.einsum("nzh,nh->nz", emb, ctx)
-        transition_matrix = th.einsum("nac,nbc->nab", emb + ctx.unsqueeze(1), emb_out)
-        if lengths is not None:
-            N = lengths.shape[0]
-            mask = ~(
-                th.arange(self.z_size, device = lengths.device, dtype = lengths.dtype)
-                    .repeat(N, 1) < lengths.unsqueeze(-1)
-            )
-            phi_pzt = phi_pzt.masked_fill(mask, float("-inf"))
-            transition_matrix = transition_matrix.masked_fill(mask.unsqueeze(-2), -1e12)
-        return phi_pzt, transition_matrix
-
-    def forward(
-        self, data_feed, mode, clf=False, gen_type='greedy',
-        use_py=None, return_latent=False,
-        get_marginals = False,
-    ):
+    def forward(self, data_feed, mode, clf=False, gen_type='greedy', use_py=None, return_latent=False, get_marginals=False):
         ctx_lens = data_feed['context_lens']  # (batch_size, )
         ctx_utts = self.np2var(data_feed['contexts'], LONG)  # (batch_size, max_ctx_len, max_utt_len)
         ctx_confs = self.np2var(data_feed['context_confs'], FLOAT)  # (batch_size, max_ctx_len)
         out_utts = self.np2var(data_feed['outputs'], LONG)  # (batch_size, max_out_len)
         goals = self.np2var(data_feed['goals'], LONG)  # (batch_size, goal_len)
-        partitions = self.np2var(data_feed.partitions, LONG)
-        num_partitions = self.np2var(data_feed.num_partitions, INT)
         batch_size = len(ctx_lens)
-
-        self.z_size = data_feed.num_partitions.max()
-
-        # oracle
-        parsed_outputs = self.np2var(data_feed.parsed_outputs, LONG)
-        partner_goals = self.np2var(data_feed.true_partner_goals, LONG)
 
         # encode goal info
         goals_h = self.goal_encoder(goals)  # (batch_size, goal_nhid)
 
-        enc_inputs, _, _ = self.utt_encoder(
-            ctx_utts,
-            feats=ctx_confs,
-            goals=goals_h,  # (batch_size, max_ctx_len, num_directions*utt_cell_size)
-        )
+        enc_inputs, _, _ = self.utt_encoder(ctx_utts, feats=ctx_confs,
+                                            goals=goals_h)  # (batch_size, max_ctx_len, num_directions*utt_cell_size)
 
         # enc_outs: (batch_size, max_ctx_len, ctx_cell_size)
         # enc_last: tuple, (h_n, c_n)
@@ -161,21 +149,14 @@ class Hmm(BaseModel):
         # c_n: (num_layers*num_directions, batch_size, ctx_cell_size)
         enc_outs, enc_last = self.ctx_encoder(enc_inputs, input_lengths=ctx_lens, goals=None)
 
-        # get decoder inputs
-        dec_inputs = out_utts[:, :-1]
-        labels = out_utts[:, 1:].contiguous()
-
-        # pack attention context
-        if self.config.dec_use_attn:
-            attn_context = enc_outs
-        else:
-            attn_context = None
-
-        # create decoder initial states
-        dec_init_state = self.connector(enc_last)
-
-        # transition matrix
-        ctx_input = self.prior_res_layer(enc_last[-1])
+        partitions = self.np2var(data_feed.partitions, LONG)
+        num_partitions = self.np2var(data_feed.num_partitions, INT)
+        # oracle input
+        partner_goals = self.np2var(data_feed.true_partner_goals, LONG)
+        parsed_outputs = self.np2var(data_feed.parsed_outputs, LONG)
+        # true partner item values
+        partner_goals_h = self.goal_encoder(partner_goals)
+        """
         my_state_emb = self.res_layer(th.cat([
             self.book_emb(partitions[:,:,0]),
             self.hat_emb (partitions[:,:,1]),
@@ -186,7 +167,24 @@ class Hmm(BaseModel):
             self.hat_emb (partitions[:,:,4]),
             self.ball_emb(partitions[:,:,5]),
         ], -1))
-        state_emb = th.cat([my_state_emb, your_state_emb], -1)
+
+        """
+
+        # proposal prediction
+        prop_enc_inputs, _, _ = self.prop_utt_encoder(
+            ctx_utts,
+            feats=ctx_confs,
+            goals=goals_h,  # (batch_size, max_ctx_len, num_directions*utt_cell_size)
+        )
+
+        # enc_outs: (batch_size, max_ctx_len, ctx_cell_size)
+        # enc_last: tuple, (h_n, c_n)
+        # h_n: (num_layers*num_directions, batch_size, ctx_cell_size)
+        # c_n: (num_layers*num_directions, batch_size, ctx_cell_size)
+        prop_enc_outs, prop_enc_last = self.prop_ctx_encoder(
+            enc_inputs, input_lengths=ctx_lens, goals=None,
+        )
+
         my_state_emb_out = self.res_layer_out(th.cat([
             self.book_emb_out(partitions[:,:,0]),
             self.hat_emb_out (partitions[:,:,1]),
@@ -199,123 +197,69 @@ class Hmm(BaseModel):
         ], -1))
         state_emb_out = th.cat([my_state_emb_out, your_state_emb_out], -1)
 
-        goals_h = self.res_goal_mlp(th.cat([
-            goals_h.unsqueeze(1).expand(state_emb.shape[0], state_emb.shape[1], goals_h.shape[-1]),
-            state_emb,
-        ], -1)).view(-1, 128)
+        big_goals_h = self.res_goal_mlp(th.cat([
+            goals_h.unsqueeze(1).expand(
+                state_emb_out.shape[0],
+                state_emb_out.shape[1],
+                goals_h.shape[-1],
+            ),
+            state_emb_out,
+        ], -1))
 
-        # for noisy labels
-        if self.noisy_proposal_labels:
-            # transition from state to label
-            label_mask = (partitions == parsed_outputs.unsqueeze(1)).all(-1)
-            logp_label_z = th.einsum("nsh,nth->nts", state_emb, state_emb_out).log_softmax(-1)
-            # outer dim t should be output label
+        z_size = partitions.shape[1]
 
-        phi_zt, psi_zl_zr = self.hmm_potentials(state_emb, state_emb_out, ctx_input, lengths=num_partitions)
-        logp_zt = phi_zt.log_softmax(-1)
-        logp_zr_zl = psi_zl_zr.log_softmax(-1).transpose(-1, -2)
+        prop_mask = (partitions == parsed_outputs.unsqueeze(1)).all(-1)
+        logits_prop = th.einsum("nsh,nh->ns", state_emb_out, prop_enc_last[-1])
+        mask = ~(
+            th.arange(z_size, device = num_partitions.device, dtype = num_partitions.dtype)
+                .repeat(partitions.shape[0], 1) < num_partitions.unsqueeze(-1)
+        )
+        logp_prop = logits_prop.masked_fill(mask, float("-inf")).log_softmax(-1)# get decoder inputs
+        nll_prop = -logp_prop[prop_mask].mean()
+
+        dec_inputs = out_utts[:, :-1]
+        labels = out_utts[:, 1:].contiguous()
+
+        # pack attention context
+        if self.config.dec_use_attn:
+            attn_context = enc_outs
+        else:
+            attn_context = None
+
+        # create decoder initial states
+        dec_init_state = self.connector(enc_last)
 
         # decode
         N, T = dec_inputs.shape
-        dec_init_state = enc_last.repeat(1, self.z_size, 1)
+        H = dec_init_state.shape[-1]
         dec_outputs, dec_hidden_state, ret_dict = self.decoder(
-            batch_size = batch_size * self.z_size,
-            dec_inputs = dec_inputs.repeat(1, self.z_size, 1).view(-1, T), # (batch_size, response_size-1)
-            dec_init_state = dec_init_state,  # tuple: (h, c)
-            attn_context = None, # (batch_size, max_ctx_len, ctx_cell_size)
+            batch_size = batch_size * z_size,
+            dec_inputs = dec_inputs.repeat(z_size, 1),
+            # (batch_size, response_size-1)
+            dec_init_state = dec_init_state.repeat(1, z_size, 1),
+            attn_context = attn_context,
+            # (batch_size, max_ctx_len, ctx_cell_size)
             mode = mode,
             gen_type = gen_type,
-            beam_size = self.config.beam_size,
-            goal_hid = goals_h,  # (batch_size, goal_nhid)
-        )
+            beam_size=self.config.beam_size,
+            # my goal, your goal, and the proposal!!! a lot
+            goal_hid=big_goals_h.view(-1, 128),
+        )  # (batch_size, goal_nhid)
+        V = dec_outputs.shape[-1]
+        logp_w_prop = dec_outputs.view(N, z_size, T, V)[prop_mask]
+        import pdb; pdb.set_trace()
 
-        BLAM, T, V = dec_outputs.shape
-        # all word probs, they need to be summed over
-        # `log p(xt) = \sum_i \log p(w_ti)`
-        logp_wt_zt = dec_outputs.view(N, self.z_size, T, V).gather(
-            -1,
-            labels.view(N, 1, T, 1).expand(N, self.z_size, T, 1),
-        ).squeeze(-1)
-
-        # get rid of padding, mask to 0
-        logp_xt_zt = (logp_wt_zt
-            .masked_fill(labels.unsqueeze(1) == self.nll.padding_idx, 0)
-            .sum(-1)
-        )
-
-        # do linear chain stuff
-        # a little weird, we're working with a chain graphical model
-        # need to normalize over each zt so the lm probs remain normalized
-        dlg_idxs = data_feed.dlg_idxs
-        t = 0
-        ll_label = 0
-        prev_zt = logp_zt[t]
-
-        logp_xt = [
-            (logp_xt_zt[t] + prev_zt).logsumexp(-1)
-        ]
-        if self.training and self.noisy_proposal_labels and label_mask[0].any():
-            if not self.config.sup_proposal_labels:
-                # predict noisy proposal from hidden state
-                ll_label += (
-                    logp_label_z[t] + prev_zt.unsqueeze(-1)
-                ).logsumexp(0)[label_mask[t]].logsumexp(0)
-            else:
-                ll_label += prev_zt[label_mask[t]].logsumexp(0)
-        for t in range(1, N):
-            if dlg_idxs[t] != dlg_idxs[t-1]:
-                # restart hmm
-                prev_zt = logp_zt[t]
-                logp_xt.append(
-                    (logp_xt_zt[t] + prev_zt).logsumexp(-1)
-                )
-            else:
-                # continue
-                # unsqueeze is unnecessary, broadcasting handles it
-                #prev_zt = (prev_zt.unsqueeze(-2) + logp_zr_zl[t]).logsumexp(-1)
-                prev_zt = logp_zt[t]
-                logp_xt.append(
-                    (logp_xt_zt[t] + prev_zt).logsumexp(-1)
-                )
-            if self.training and self.noisy_proposal_labels and label_mask[t].any():
-                if not self.config.sup_proposal_labels:
-                    # predict noisy proposal from hidden state
-                    ll_label += (
-                        logp_label_z[t] + prev_zt.unsqueeze(-1)
-                    ).logsumexp(0)[label_mask[t]].logsumexp(0)
-                else:
-                    ll_label += prev_zt[label_mask[t]].logsumexp(0)
-        logp_xt = th.stack(logp_xt)
-        if self.nll.avg_type == "real_word":
-            nll_word = -(logp_xt / (labels.sign().sum(-1).float())).mean()
-        elif self.nll.avg_type == "word":
-            nll_word = -(logp_xt.sum() / labels.sign().sum())
-        else:
-            raise ValueError("Unknown reduction type")
-
-        if self.training and self.noisy_proposal_labels and label_mask.any():
-            #nll -= 0.1 * ll_label / label_mask.sum().float()
-            nll_label = - self.config.label_weight * ll_label / label_mask.any(-1).sum().float()
-        else:
-            nll_label = th.zeros(1).to(nll_word.device)
-
-            #import pdb; pdb.set_trace()
         if get_marginals:
             return Pack(
                 dec_outputs = dec_outputs,
-                logp_xt = logp_xt,
                 labels = labels,
             )
-        #Z = prev_zt.logsumexp(0)
         if mode == GEN:
             return ret_dict, labels
         if return_latent:
-            return Pack(nll=nll,
+            return Pack(nll=self.nll(logp_w_prop, labels),
                         latent_action=dec_init_state)
         else:
-            return Pack(nll_label=nll_label, nll_word=nll_word)
+            return Pack(nll=self.nll(logp_w_prop, labels), nll_prop = nll_prop)
 
 
-    # for decoding when negotiating
-    def z2dec(self, last_h, requires_grad):
-        raise NotImplementedError("not adapted yet")
