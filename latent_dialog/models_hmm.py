@@ -272,8 +272,8 @@ class Hmm(BaseModel):
             else:
                 # continue
                 # unsqueeze is unnecessary, broadcasting handles it
-                #prev_zt = (prev_zt.unsqueeze(-2) + logp_zr_zl[t]).logsumexp(-1)
-                prev_zt = logp_zt[t]
+                prev_zt = (prev_zt.unsqueeze(-2) + logp_zr_zl[t]).logsumexp(-1)
+                #prev_zt = logp_zt[t]
                 logp_xt.append(
                     (logp_xt_zt[t] + prev_zt).logsumexp(-1)
                 )

@@ -93,7 +93,7 @@ class HRED(BaseModel):
         self.book_emb = nn.Embedding(16, 32)
         self.hat_emb = nn.Embedding(16, 32)
         self.ball_emb = nn.Embedding(16, 32)
-        self.res_layer = nn_lib.ResidualLayer(3 * 32, 64)
+        self.res_layer = nn_lib.ResidualLayer(3 * 32, 128)
 
         self.book_emb_out = nn.Embedding(16, 32)
         self.hat_emb_out = nn.Embedding(16, 32)
@@ -159,19 +159,7 @@ class HRED(BaseModel):
         parsed_outputs = self.np2var(data_feed.parsed_outputs, LONG)
         # true partner item values
         partner_goals_h = self.goal_encoder(partner_goals)
-        """
-        my_state_emb = self.res_layer(th.cat([
-            self.book_emb(partitions[:,:,0]),
-            self.hat_emb (partitions[:,:,1]),
-            self.ball_emb(partitions[:,:,2]),
-        ], -1))
-        your_state_emb = self.res_layer(th.cat([
-            self.book_emb(partitions[:,:,3]),
-            self.hat_emb (partitions[:,:,4]),
-            self.ball_emb(partitions[:,:,5]),
-        ], -1))
 
-        """
 
         # proposal prediction
         prop_enc_inputs, _, _ = self.prop_utt_encoder(
@@ -222,7 +210,18 @@ class HRED(BaseModel):
         if self.config.semisupervised:
             # re-use params or make new ones? re-using can only hurt
             # TODO: use new parameters
-            logp_tprop_prop = th.einsum("nth,nsh->nts", state_emb_out, state_emb_out).log_softmax(1)
+            my_state_emb = self.res_layer(th.cat([
+                self.book_emb(partitions[:,:,0]),
+                self.hat_emb (partitions[:,:,1]),
+                self.ball_emb(partitions[:,:,2]),
+            ], -1))
+            your_state_emb = self.res_layer(th.cat([
+                self.book_emb(partitions[:,:,3]),
+                self.hat_emb (partitions[:,:,4]),
+                self.ball_emb(partitions[:,:,5]),
+            ], -1))
+            noise_state_emb = th.cat([my_state_emb, your_state_emb], -1)
+            logp_tprop_prop = th.einsum("nth,nsh->nts", noise_state_emb, state_emb_out).log_softmax(1)
             nll_prop = - self.config.prop_weight * (logp_tprop_prop + logp_prop.unsqueeze(-2)).logsumexp(-1).mean()
         else:
             nll_prop = - self.config.prop_weight * logp_prop[prop_mask].mean()
