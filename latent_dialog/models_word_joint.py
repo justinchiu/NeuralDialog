@@ -140,8 +140,11 @@ class HRED(BaseModel):
         # encode goal info
         goals_h = self.goal_encoder(goals)  # (batch_size, goal_nhid)
 
-        enc_inputs, _, _ = self.utt_encoder(ctx_utts, feats=ctx_confs,
-                                            goals=goals_h)  # (batch_size, max_ctx_len, num_directions*utt_cell_size)
+        enc_inputs, _, _ = self.utt_encoder(
+            ctx_utts,
+            feats=ctx_confs,
+            goals=goals_h,  # (batch_size, max_ctx_len, num_directions*utt_cell_size)
+        )
 
         # enc_outs: (batch_size, max_ctx_len, ctx_cell_size)
         # enc_last: tuple, (h_n, c_n)
@@ -214,8 +217,15 @@ class HRED(BaseModel):
             th.arange(z_size, device = num_partitions.device, dtype = num_partitions.dtype)
                 .repeat(partitions.shape[0], 1) < num_partitions.unsqueeze(-1)
         )
-        logp_prop = logits_prop.masked_fill(mask, float("-inf")).log_softmax(-1)# get decoder inputs
-        nll_prop = -logp_prop[prop_mask].mean()
+        logp_prop = logits_prop.masked_fill(mask, float("-inf")).log_softmax(-1) # get decoder inputs
+
+        if self.config.semisupervised:
+            # re-use params or make new ones? re-using can only hurt
+            # TODO: use new parameters
+            logp_tprop_prop = th.einsum("nth,nsh->nts", state_emb_out, state_emb_out).log_softmax(1)
+            nll_prop = - self.config.prop_weight * (logp_tprop_prop + logp_prop.unsqueeze(-2)).logsumexp(-1).mean()
+        else:
+            nll_prop = - self.config.prop_weight * logp_prop[prop_mask].mean()
 
         dec_inputs = out_utts[:, :-1]
         labels = out_utts[:, 1:].contiguous()
@@ -234,9 +244,9 @@ class HRED(BaseModel):
         H = dec_init_state.shape[-1]
         dec_outputs, dec_hidden_state, ret_dict = self.decoder(
             batch_size = batch_size * z_size,
-            dec_inputs = dec_inputs.repeat(z_size, 1),
+            dec_inputs = dec_inputs.repeat(1, z_size).view(-1, T),
             # (batch_size, response_size-1)
-            dec_init_state = dec_init_state.repeat(1, z_size, 1),
+            dec_init_state = dec_init_state.repeat(1, 1, z_size).view(1, z_size * batch_size, H),
             attn_context = attn_context,
             # (batch_size, max_ctx_len, ctx_cell_size)
             mode = mode,
@@ -246,8 +256,10 @@ class HRED(BaseModel):
             goal_hid=big_goals_h.view(-1, 128),
         )  # (batch_size, goal_nhid)
         V = dec_outputs.shape[-1]
-        logp_w_prop = dec_outputs.view(N, z_size, T, V)[prop_mask]
-        import pdb; pdb.set_trace()
+        #logp_w_prop = dec_outputs.view(N, z_size, T, V)[prop_mask]
+        logp_w_prop = (
+            dec_outputs.view(N, z_size, T, V) + logp_prop.view(N, z_size, 1, 1)
+        ).logsumexp(1)
 
         if get_marginals:
             return Pack(

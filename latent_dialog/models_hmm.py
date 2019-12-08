@@ -217,10 +217,10 @@ class Hmm(BaseModel):
 
         # decode
         N, T = dec_inputs.shape
-        dec_init_state = enc_last.repeat(1, self.z_size, 1)
+        dec_init_state = enc_last.repeat(1, 1, self.z_size).view(self.config.num_layers, N*self.z_size, -1)
         dec_outputs, dec_hidden_state, ret_dict = self.decoder(
             batch_size = batch_size * self.z_size,
-            dec_inputs = dec_inputs.repeat(1, self.z_size, 1).view(-1, T), # (batch_size, response_size-1)
+            dec_inputs = dec_inputs.repeat(1, 1, self.z_size).view(-1, T), # (batch_size, response_size-1)
             dec_init_state = dec_init_state,  # tuple: (h, c)
             attn_context = None, # (batch_size, max_ctx_len, ctx_cell_size)
             mode = mode,

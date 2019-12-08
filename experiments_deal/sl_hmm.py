@@ -86,8 +86,8 @@ config = Pack(
     noisy_proposal_labels = True,
     sup_proposal_labels = False,
     #sup_proposal_labels = True,
-    #label_weight = 0.1,
-    label_weight = 1,
+    label_weight = 0.1,
+    #label_weight = 1,
 )
 
 set_seed(10)

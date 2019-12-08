@@ -85,6 +85,9 @@ config = Pack(
     #oracle_parse = False,
     oracle_context = False,
     oracle_parse = True,
+    semisupervised = True,
+    #prop_weight = 0.1,
+    prop_weight = 1,
 )
 
 set_seed(config.random_seed)
