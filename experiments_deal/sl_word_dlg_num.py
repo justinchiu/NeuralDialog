@@ -10,7 +10,7 @@ from latent_dialog.corpora import DealCorpus
 #from latent_dialog.data_loaders import DealDataLoaders
 from latent_dialog.dealta_loaders import DealDataLoaders
 from latent_dialog.evaluators import BleuEvaluator
-from latent_dialog.models_word_joint import HRED
+from latent_dialog.models_word_joint_num import HRED
 from latent_dialog.main import train, validate, generate
 import latent_dialog.domain as domain
 
@@ -76,9 +76,9 @@ config = Pack(
     goal_embed_size = 64, 
     goal_nhid = 64, 
     init_range = 0.1,
-    pretrain_folder = '2019-12-08-19-38-29-sl_word_dlg_noattn_joint',
-    #forward_only = False,
-    forward_only = True,
+    pretrain_folder = '2019-12-08-18-45-47-sl_word_dlg_num',
+    forward_only = False,
+    #forward_only = True,
     # different batching style
     seq = True,
     # use oracle context and proposal parse
@@ -86,12 +86,11 @@ config = Pack(
     #oracle_context = False,
     #oracle_parse = False,
     oracle_parse = True,
-    semisupervised = True,
-    #semisupervised = False,
+    semisupervised = False,
     #prop_weight = 0.1,
-    #prop_weight = 1,
     prop_weight = 1,
-    tie_prop_utt_enc = True,
+    #prop_weight = 0,
+    tie_prop_utt_enc = False,
 )
 
 set_seed(config.random_seed)

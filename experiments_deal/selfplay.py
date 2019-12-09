@@ -25,11 +25,9 @@ def main():
 
     # RL configuration
     env = 'gpu'
-    epoch_id = '29'
-    #folder = '2019-06-20-09-19-39-sl_word'
-    #simulator_folder = '2019-06-20-09-19-39-sl_word'
-    folder = "2019-12-06-02-20-58-sl_word_dlg_noattn"
-    simulator_folder = "2019-12-06-02-20-58-sl_word_dlg_noattn"
+    epoch_id = '23'
+    folder = '2019-06-20-09-19-39-sl_word'
+    simulator_folder = '2019-06-20-09-19-39-sl_word'
     exp_dir = os.path.join('config_log_model', folder, 'rl-' + start_time)
     if not os.path.exists(exp_dir):
         os.mkdir(exp_dir)

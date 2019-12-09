@@ -68,7 +68,6 @@ class DealDataLoaders(BaseDataLoaders):
         vec_out_lens = np.array(out_lens) # (batch_size, ), number of tokens
         max_out_len = np.max(vec_out_lens)
         vec_out_utts = np.zeros((self.batch_size, max_out_len), dtype=np.int32)
-        import pdb; pdb.set_trace()
 
         max_goal_len, min_goal_len = max(goal_lens), min(goal_lens)
         if max_goal_len != min_goal_len or max_goal_len != 6:

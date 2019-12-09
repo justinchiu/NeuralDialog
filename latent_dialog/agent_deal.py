@@ -7,6 +7,7 @@ from latent_dialog import domain
 from latent_dialog.utils import LONG, FLOAT
 from latent_dialog.corpora import USR, SYS, BOD, EOS, STOP_TOKENS, SEL
 
+from latent_dialog.latents import get_latent_powerset
 
 class Agent(object):
     """Agent's interface.
@@ -297,10 +298,12 @@ class LatentAgent(Agent):
         inpt = self.corpus.sent2id([USR]) + inpt if require_speaker else inpt
         self.dlg_history.append(inpt)
         inpt_var = self.model.np2var(np.array(inpt), LONG).view(1, 1, len(inpt)) # (1, 1, max_words+1)
+        feats = self.model.np2var(np.ones((1, 1)), FLOAT) # (1, 1)
         # enc_inputs: (1, 1, num_directions*utt_cell_size)
         # token_embed: (1, 1*max_utt_len, embedding_dim+1)
         # token_feat: (1, 1*max_utt_len, num_directions*utt_cell_size)
-        enc_inputs, token_embed, token_feat = self.model.utt_encoder(inpt_var, goals=self.goal_h)
+        enc_inputs, token_embed, token_feat = self.model.utt_encoder(
+            inpt_var, feats=feats if self.model.utt_encoder.rnn.rnn.input_size == 321 else None, goals=self.goal_h)
         self.token_embed.append(token_embed)
         self.token_feat.append(token_feat)
         # self.lang_is.append(enc_inputs)
@@ -425,6 +428,150 @@ class LatentRlAgent(LatentAgent):
             logprobs, outs = self.model.decoder.write(inpt_var, dec_init_s, self.lang_os, max_words, self.model.vocab,
                                                       stop_tokens, self.goal_h)
             self.logprobs.extend(logprobs)
+
+        if outs[-1] == self.corpus.sent2id([SEL])[-1]:
+            eos_patch = self.corpus.sent2id([EOS])
+            outs += eos_patch
+        inpt += outs
+        self.read(inpt, require_speaker=False)
+        return outs, self.corpus.id2sent(outs)
+
+    def update(self, agree, reward):
+        reward = reward if agree else 0
+        self.all_rewards.append(reward)
+        # standardize the reward
+        r = (reward - np.mean(self.all_rewards)) / max(1e-4, np.std(self.all_rewards))
+        # compute accumulated discounted reward
+        g = self.model.np2var(np.array([r]), FLOAT).view(1, 1)
+        rewards = []
+        for _ in self.logprobs:
+            rewards.insert(0, g)
+            g = g * self.args.gamma
+
+        loss = 0
+        # estimate the loss using one MonteCarlo rollout
+        for lp, r in zip(self.logprobs, rewards):
+            loss -= lp * r
+        self.opt.zero_grad()
+        loss.backward()
+        nn.utils.clip_grad_norm_(self.model.parameters(), self.args.rl_clip)
+        self.opt.step()
+
+class JointAgent(LatentAgent):
+    """An Agent that updates the model parameters using REINFORCE to maximize the reward."""
+    def __init__(self, model, corpus, args, name, use_latent_rl=True):
+        super(JointAgent, self).__init__(model, corpus, args, name)
+        # params = []
+        # params.extend(self.model.goal_encoder.parameters())
+        # params.extend(self.model.utt_encoder.parameters())
+        # params.extend(self.model.ctx_encoder.parameters())
+        # self.opt = optim.SGD(
+        #     params,
+        #     lr=self.args.rl_lr,
+        #     momentum=self.args.momentum,
+        #     nesterov=(self.args.nesterov and self.args.momentum > 0))
+        self.opt = optim.SGD(
+            self.model.parameters(),
+            lr=self.args.rl_lr,
+            momentum=self.args.momentum,
+            nesterov=(self.args.nesterov and self.args.momentum > 0))
+        # self.opt = optim.Adam(self.model.parameters(), lr=0.01)
+        # self.opt = optim.RMSprop(self.model.parameters(), lr=0.0005)
+        self.use_latent_rl = use_latent_rl
+        self.all_rewards = []
+        self.model.train()
+        self.prop_lang_os = None
+        self.prop_lang_h = None
+
+    def feed_context(self, context):
+        self.context = context
+        context_id = np.array(self.corpus.goal2id(context))
+        context_var = self.model.np2var(context_id, LONG).unsqueeze(0) # (1, goal_len)
+        self.goal_h = self.model.goal_encoder(context_var) # (1, goal_nhid)
+
+        # data that need updating and collecting
+        self.dlg_history = [] # len = max_dlg_len
+        # self.lang_is = [] # max_dlg_len*(1, 1, num_direction*utt_cell_size)
+        self.lang_os = [] # max_dlg_len*(1, 1, dlg_cell_size)
+        self.lang_h = None # tuple: (h, c)
+        self.prop_lang_os = [] # max_dlg_len*(1, 1, dlg_cell_size)
+        self.prop_lang_h = None # tuple: (h, c)
+
+        self.token_embed = [] # max_dlg_len*(1, max_utt_len, embedding_dim+1)
+        self.token_feat  = [] # max_dlg_len*(1, max_utt_len, num_directions*utt_cell_size)
+        self.turn_feat   = [] # max_dlg_len*(1, max_utt_len, dlg_cell_size)
+        self.prop_token_embed = [] # max_dlg_len*(1, max_utt_len, embedding_dim+1)
+        self.prop_token_feat  = [] # max_dlg_len*(1, max_utt_len, num_directions*utt_cell_size)
+        self.prop_turn_feat   = [] # max_dlg_len*(1, max_utt_len, dlg_cell_size)
+
+        self.partitions = th.LongTensor(get_latent_powerset([int(x) for x in context])).to(self.goal_h.device).unsqueeze(0)
+        self.my_state_emb_out = self.model.res_layer_out(th.cat([
+            self.model.book_emb_out(self.partitions[:,:,0]),
+            self.model.hat_emb_out (self.partitions[:,:,1]),
+            self.model.ball_emb_out(self.partitions[:,:,2]),
+        ], -1))
+        self.your_state_emb_out = self.model.res_layer_out(th.cat([
+            self.model.book_emb_out(self.partitions[:,:,3]),
+            self.model.hat_emb_out (self.partitions[:,:,4]),
+            self.model.ball_emb_out(self.partitions[:,:,5]),
+        ], -1))
+        self.state_emb_out = th.cat([self.my_state_emb_out, self.your_state_emb_out], -1)
+        self.big_goals_h = self.model.res_goal_mlp(th.cat([
+            self.goal_h.unsqueeze(1).expand(
+                self.state_emb_out.shape[0],
+                self.state_emb_out.shape[1],
+                self.goal_h.shape[-1],
+            ),
+            self.state_emb_out,
+        ], -1))
+
+        # save all the log probs for each generated word,
+        # so we can use it later to estimate policy gradient.
+        self.logprobs = [] # put this variable here because we want to clear it at the beginning of each episode
+
+    def read(self, inpt, require_speaker=True):
+        inpt = self.corpus.sent2id([USR]) + inpt if require_speaker else inpt
+        self.dlg_history.append(inpt)
+        inpt_var = self.model.np2var(np.array(inpt), LONG).view(1, 1, len(inpt)) # (1, 1, max_words+1)
+        feats = self.model.np2var(np.ones((1, 1)), FLOAT) # (1, 1)
+        # enc_inputs: (1, 1, num_directions*utt_cell_size)
+        # token_embed: (1, 1*max_utt_len, embedding_dim+1)
+        # token_feat: (1, 1*max_utt_len, num_directions*utt_cell_size)
+        enc_inputs, token_embed, token_feat = self.model.utt_encoder(
+            inpt_var, feats=feats if self.model.utt_encoder.rnn.rnn.input_size == 321 else None, goals=self.goal_h)
+        self.token_embed.append(token_embed)
+        self.token_feat.append(token_feat)
+        prop_enc_inputs, prop_token_embed, prop_token_feat = self.model.prop_utt_encoder(
+            inpt_var, feats=feats if self.model.prop_utt_encoder.rnn.rnn.input_size == 321 else None, goals=self.goal_h)
+        self.prop_token_embed.append(prop_token_embed)
+        self.prop_token_feat.append(prop_token_feat)
+        # self.lang_is.append(enc_inputs)
+        enc_outputs, self.lang_h = self.model.ctx_encoder(enc_inputs, init_state=self.lang_h, goals=None) # enc_outputs: (1, 1, dlg_cell_size)
+        prop_enc_outputs, self.prop_lang_h = self.model.ctx_encoder(prop_enc_inputs, init_state=self.prop_lang_h, goals=None) # enc_outputs: (1, 1, dlg_cell_size)
+        turn_feat = enc_outputs.unsqueeze(2).repeat(1, 1, inpt_var.size(-1), 1).view(enc_outputs.size(0), -1, enc_outputs.size(2)) # (1, 1*max_utt_len, dlg_cell_size)
+        self.turn_feat.append(turn_feat)
+        self.lang_os.append(enc_outputs)
+        prop_turn_feat = prop_enc_outputs.unsqueeze(2).repeat(1, 1, inpt_var.size(-1), 1).view(prop_enc_outputs.size(0), -1, prop_enc_outputs.size(2)) # (1, 1*max_utt_len, dlg_cell_size)
+        self.prop_turn_feat.append(prop_turn_feat)
+        self.prop_lang_os.append(prop_enc_outputs)
+        # assert (th.cat(self.lang_is, 1).size(1) == th.cat(self.lang_os, 1).size(1) and th.cat(self.lang_is, 1).size(1) == len(self.dlg_history))
+        assert len(set([th.cat(self.token_embed, 1).size(1), th.cat(self.token_feat, 1).size(1), th.cat(self.turn_feat, 1).size(1)])) == 1 \
+               and len(set([len(self.dlg_history), len(self.lang_os), len(token_embed), len(token_feat), len(turn_feat)]))
+
+
+    def write(self, max_words=None, stop_tokens=STOP_TOKENS):
+        max_words = self.args.max_words if max_words is None else max_words
+        inpt = self.corpus.sent2id([SYS])
+        inpt_var = self.model.np2var(np.array(inpt), LONG).view(1, len(inpt))
+
+        context_idx, logprob_z = self.model.z2dec(self.state_emb_out, self.prop_lang_h)
+        logprobs, outs = self.model.decoder.write(
+            inpt_var, self.lang_h, self.lang_os, max_words, self.model.vocab, stop_tokens,
+            goal_hid = self.big_goals_h
+                .gather(1, context_idx.unsqueeze(-1)
+                    .expand(1, 1, self.big_goals_h.shape[-1]))[0],
+        )
+        self.logprobs.append(logprob_z)
 
         if outs[-1] == self.corpus.sent2id([SEL])[-1]:
             eos_patch = self.corpus.sent2id([EOS])

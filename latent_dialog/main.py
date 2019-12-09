@@ -10,7 +10,9 @@ from latent_dialog.enc2dec.decoders import TEACH_FORCE, GEN, DecoderRNN
 from datetime import datetime
 from latent_dialog.utils import get_detokenize
 from latent_dialog.corpora import EOS, PAD
-from latent_dialog.data_loaders import DealDataLoaders, BeliefDbDataLoaders
+#from latent_dialog.data_loaders import DealDataLoaders, BeliefDbDataLoaders
+from latent_dialog.data_loaders import BeliefDbDataLoaders
+from latent_dialog.dealta_loaders import DealDataLoaders
 from latent_dialog import evaluators
 from latent_dialog.record import record, record_task, UniquenessSentMetric, UniquenessWordMetric
 import logging

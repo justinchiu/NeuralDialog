@@ -9,5 +9,6 @@ def get_latent_powerset(goal):
     flat_complements = [counts - x for x in flat_partitions]
     # first is you, second is partner
     partitions = [(x[0], x[1], x[2], y[0], y[1], y[2]) for x, y in zip(flat_partitions, flat_complements)] 
+    #return list(set(partitions)) + [[11] * 6, [12] * 6, [13] * 6, [14] * 6, [15]]
     return list(set(partitions)) + [[11] * 6]
 

@@ -100,6 +100,8 @@ class HRED(BaseModel):
         self.ball_emb_out = nn.Embedding(16, 32)
         self.res_layer_out = nn_lib.ResidualLayer(3 * 32, 128)
 
+        self.res_layer_state = nn_lib.ResidualLayer(128 * 3, 256)
+
         self.prop_utt_encoder = RnnUttEncoder(
             vocab_size=self.vocab_size,
             embedding_dim=config.embed_size,
@@ -120,15 +122,13 @@ class HRED(BaseModel):
             input_dropout_p=0.0,
             rnn_cell=config.ctx_rnn_cell,
             # input_size=self.utt_encoder.output_size+config.goal_nhid, 
-            input_size = self.utt_encoder.output_size + 64
-            if config.oracle_context else self.utt_encoder.output_size,
+            input_size = self.utt_encoder.output_size,
             hidden_size=config.ctx_cell_size,
             num_layers=config.num_layers,
             output_dropout_p=config.dropout,
             bidirectional=config.bi_ctx_cell,
             variable_lengths=False,
         )
-
 
         self.w_pz0 = nn.Linear(64, 64, bias=False)
         self.prior_res_layer = nn_lib.ResidualLayer(config.ctx_cell_size, 64)
@@ -160,10 +160,36 @@ class HRED(BaseModel):
         partitions = self.np2var(data_feed.partitions, LONG)
         num_partitions = self.np2var(data_feed.num_partitions, INT)
         # oracle input
-        partner_goals = self.np2var(data_feed.true_partner_goals, LONG)
+        true_partner_goals = self.np2var(data_feed.true_partner_goals, LONG)
+        partner_goals = self.np2var(data_feed.partner_goals, LONG)
         parsed_outputs = self.np2var(data_feed.parsed_outputs, LONG)
         # true partner item values
-        partner_goals_h = self.goal_encoder(partner_goals)
+        true_partner_goals_h = self.goal_encoder(true_partner_goals)
+        N, Z, _ = partner_goals.shape
+        partner_goals_h = self.goal_encoder(partner_goals.view(-1, 6)).view(N, Z, -1)
+
+        # get utility features
+        N, Z, G = partitions.shape
+        my_partitions = partitions[:,:,:3]
+        partner_partitions = partitions[:,:,3:]
+        # remove padding
+        my_partitions = my_partitions.masked_fill(my_partitions > 10, 0)
+        partner_partitions = partner_partitions.masked_fill(partner_partitions > 10, 0)
+
+        my_values = goals[:,1::2]
+        true_partner_values = true_partner_goals[:,1::2]
+        partner_values = partner_goals[:,:,1::2]
+
+        my_utilities = th.einsum("nzc,nc->nz", my_partitions.float(), my_values.float()).long()
+        true_partner_utilities = th.einsum("nzc,nc->nz", partner_partitions.float(), true_partner_values.float()).long()
+        partner_utilities = th.einsum("nzc,nvc->nzv", partner_partitions.float(), partner_values.float()).long()
+
+        # my_utilities_h: N x Z x 64
+        my_utilities_h = self.goal_encoder.val_enc(my_utilities)
+        # my_utilities_h: N x Z x 64
+        true_partner_utilities_h = self.goal_encoder.val_enc(true_partner_utilities)
+        # my_utilities_h: N x Z x V x 64
+        partner_utilities_h = self.goal_encoder.val_enc(partner_utilities)
 
         # proposal prediction
         prop_enc_inputs, _, _ = self.prop_utt_encoder(
@@ -179,7 +205,8 @@ class HRED(BaseModel):
         prop_enc_outs, prop_enc_last = self.prop_ctx_encoder(
             enc_inputs if self.config.tie_prop_utt_enc else prop_enc_inputs,
             input_lengths = ctx_lens,
-            goals = partner_goals_h if self.config.oracle_context else None,
+            goals = None,
+            #goals = partner_goals_h if self.config.oracle_context else None,
         )
 
         my_state_emb_out = self.res_layer_out(th.cat([
@@ -192,7 +219,11 @@ class HRED(BaseModel):
             self.hat_emb_out (partitions[:,:,4]),
             self.ball_emb_out(partitions[:,:,5]),
         ], -1))
-        state_emb_out = th.cat([my_state_emb_out, your_state_emb_out], -1)
+        #state_emb_out = th.cat([my_state_emb_out, your_state_emb_out], -1)
+        # use oracle partner utility for now
+        state_emb_out = self.res_layer_state(th.cat([
+            my_state_emb_out, your_state_emb_out, my_utilities_h, true_partner_utilities_h,
+        ], -1))
 
         big_goals_h = self.res_goal_mlp(th.cat([
             goals_h.unsqueeze(1).expand(
@@ -244,32 +275,6 @@ class HRED(BaseModel):
         # create decoder initial states
         dec_init_state = self.connector(enc_last)
 
-        if mode == GEN:
-            N, Z, H = big_goals_h.shape
-            if gen_type == "sampled":
-                sampled_proposal_indices = logp_prop.exp().multinomial(1)
-            elif gen_type == "greedy":
-                sampled_proposal_indices = logp_prop.argmax(-1)
-            else:
-                raise ValueError(f"Unknown gen_type: {gen_type}")
-            sampled_goals_h = big_goals_h.gather(
-                1, sampled_proposal_indices.view(N, 1, 1).expand(N, 1, H)).squeeze(1)
-            dec_outputs, dec_hidden_state, ret_dict = self.decoder(
-                batch_size = batch_size,
-                dec_inputs = dec_inputs,
-                # (batch_size, response_size-1)
-                dec_init_state = dec_init_state,
-                attn_context = attn_context,
-                # (batch_size, max_ctx_len, ctx_cell_size)
-                mode = mode,
-                gen_type = gen_type,
-                beam_size=self.config.beam_size,
-                # my goal, your goal, and the proposal!!! a lot
-                goal_hid = sampled_goals_h,
-                #goal_hid=big_goals_h[prop_mask],
-            )  # (batch_size, goal_nhid)
-            return ret_dict, labels
-
         # decode
         N, T = dec_inputs.shape
         H = dec_init_state.shape[-1]
@@ -288,12 +293,12 @@ class HRED(BaseModel):
         )  # (batch_size, goal_nhid)
         V = dec_outputs.shape[-1]
         #logp_w_prop = dec_outputs.view(N, z_size, T, V)[prop_mask]
-        T_out = dec_outputs.shape[-2]
         logp_w_prop = (
-            dec_outputs.view(N, z_size, T_out, V) + logp_prop.view(N, z_size, 1, 1)
+            dec_outputs.view(N, z_size, T, V) + logp_prop.view(N, z_size, 1, 1)
         ).logsumexp(1)
 
         if get_marginals:
+            import pdb; pdb.set_trace()
             return Pack(
                 dec_outputs = dec_outputs,
                 labels = labels,
@@ -307,8 +312,3 @@ class HRED(BaseModel):
             return Pack(nll=self.nll(logp_w_prop, labels), nll_prop = nll_prop)
 
 
-    def z2dec(self, state_emb_out, prop_enc_last):
-        logits_prop = th.einsum("nsh,nh->ns", state_emb_out, prop_enc_last[-1])
-        logp_prop = logits_prop.log_softmax(-1)
-        prop_index  = logits_prop.exp().multinomial(1)
-        return prop_index, logp_prop.gather(1, prop_index)

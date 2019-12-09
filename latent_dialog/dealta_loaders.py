@@ -182,7 +182,7 @@ class DealDataLoaders(BaseDataLoaders):
                 goal_lens.append(len(goal_row))
 
                 # valid partner goals
-                partner_goals = row.partner_goal
+                partner_goals = row.valid_partner_goals
                 partner_goals_list.append(partner_goals)
                 num_partner_goals.append(len(partner_goals))
 
