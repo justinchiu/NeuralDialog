@@ -76,7 +76,9 @@ config = Pack(
     goal_embed_size = 64, 
     goal_nhid = 64, 
     init_range = 0.1,
-    pretrain_folder = '2019-12-08-19-38-29-sl_word_dlg_noattn_joint',
+    #pretrain_folder = '2019-12-08-19-38-29-sl_word_dlg_noattn_joint',
+    #pretrain_folder = '2019-12-08-19-36-45-sl_word_dlg_num',
+    pretrain_folder = '2019-12-09-06-00-43-sl_word_dlg_noattn_joint',
     #forward_only = False,
     forward_only = True,
     # different batching style
@@ -86,12 +88,12 @@ config = Pack(
     #oracle_context = False,
     #oracle_parse = False,
     oracle_parse = True,
-    semisupervised = True,
-    #semisupervised = False,
+    #semisupervised = True,
+    semisupervised = False,
     #prop_weight = 0.1,
     #prop_weight = 1,
     prop_weight = 1,
-    tie_prop_utt_enc = True,
+    tie_prop_utt_enc = False,
 )
 
 set_seed(config.random_seed)
@@ -146,8 +148,8 @@ model.load_state_dict(th.load(os.path.join(saved_path, '{}-model'.format(best_ep
 
 print("Forward Only Evaluation")
 # run the model on the test dataset
-validate(model, val_data, config)
-validate(model, test_data, config) 
+validate(model, val_data, config, get_marginals = True)
+validate(model, test_data, config, get_marginals = True) 
 
 with open(os.path.join(saved_path, '{}_test_file.txt'.format(start_time)), 'w') as f:
     generate(model, test_data, config, evaluator, num_batch=None, dest_f=f)

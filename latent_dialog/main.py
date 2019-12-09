@@ -443,7 +443,7 @@ def train(model, train_data, val_data, test_data, config, evaluator, gen=None):
                 sys.stdout.flush()
 
 
-def validate(model, val_data, config, batch_cnt=None, use_py=None):
+def validate(model, val_data, config, batch_cnt=None, use_py=None, get_marginals=None):
     model.eval()
     val_data.epoch_init(config, shuffle=False, verbose=False)
     losses = LossManager()
@@ -451,7 +451,9 @@ def validate(model, val_data, config, batch_cnt=None, use_py=None):
         batch = val_data.next_batch()
         if batch is None:
             break
-        if use_py is not None:
+        if get_marginals is not None:
+            loss = model(batch, mode=TEACH_FORCE, get_marginals = get_marginals)
+        elif use_py is not None:
             loss = model(batch, mode=TEACH_FORCE, use_py=use_py)
         else:
             loss = model(batch, mode=TEACH_FORCE)

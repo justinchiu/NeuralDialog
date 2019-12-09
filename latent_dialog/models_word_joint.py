@@ -291,20 +291,55 @@ class HRED(BaseModel):
         T_out = dec_outputs.shape[-2]
         logp_w_prop = (
             dec_outputs.view(N, z_size, T_out, V) + logp_prop.view(N, z_size, 1, 1)
-        ).logsumexp(1)
+        )
+        logp_w = logp_w_prop.logsumexp(1)
 
         if get_marginals:
+            N, Z, T, V = logp_w_prop.shape
+            logp_prop_w = logp_w_prop.gather(
+                -1,
+                labels.view(N, 1, T, 1).expand(N, Z, T, 1),
+            ).squeeze(-1).sum(-1).log_softmax(1)
+
+            best_prop_model = logp_prop_w.argmax(-1)
+            if self.config.semisupervised:
+                logp_tprop = (logp_tprop_prop + logp_prop.unsqueeze(-2)).logsumexp(-1)
+                best_tprop_model = logp_tprop.argmax(-1)
+            parsed_prop = prop_mask.argmax(-1)
+
+            out_utts_text = [[self.vocab[x] for x in xs if x != self.vocab_dict["<pad>"]] for xs in out_utts]
+            ctx_utts_text = [[self.vocab[x] for xs in xss for x in xs if x != self.vocab_dict["<pad>"]] for xss in ctx_utts]
+
+            def get(i):
+                print(partitions[i][best_prop_model[i]])
+                if self.config.semisupervised:
+                    print(partitions[i][best_tprop_model[i]])
+                print(partitions[i][parsed_prop[i]])
+                print(" ".join(out_utts_text[i]))
+                print(" ".join(ctx_utts_text[i]))
+
+            import pdb; pdb.set_trace()
+            """
             return Pack(
                 dec_outputs = dec_outputs,
                 labels = labels,
+                logp_prop = logp_prop,
+                log_marginals_prop = log_marginals_prop,
+                logp_w_prop = logp_w_prop,
+                logp_w = logp_w,
+            )
+            """
+            return Pack(
+                nll=self.nll(logp_w, labels),
+                nll_prop = nll_prop,
             )
         if mode == GEN:
             return ret_dict, labels
         if return_latent:
-            return Pack(nll=self.nll(logp_w_prop, labels),
+            return Pack(nll=self.nll(logp_w, labels),
                         latent_action=dec_init_state)
         else:
-            return Pack(nll=self.nll(logp_w_prop, labels), nll_prop = nll_prop)
+            return Pack(nll=self.nll(logp_w, labels), nll_prop = nll_prop)
 
 
     def z2dec(self, state_emb_out, prop_enc_last):
