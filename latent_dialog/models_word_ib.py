@@ -91,6 +91,10 @@ class HRED(BaseModel):
 
         self.out_backward_size = config.out_backward_size
 
+        self.z_size = config.z_size
+        self.z_dim = config.z_dim
+        self.z_emb = nn.Parameter(th.FloatTensor(config.z_size, config.z_dim))
+
         # oracle modules
         self.book_emb = nn.Embedding(16, 32)
         self.hat_emb = nn.Embedding(16, 32)
@@ -153,15 +157,11 @@ class HRED(BaseModel):
             goals=goals_h,  # (batch_size, max_ctx_len, num_directions*utt_cell_size)
         )
 
-        if self.out_backward_size > 0:
-            # enc_outs: (batch_size, max_ctx_len, ctx_cell_size)
-            # enc_last: tuple, (h_n, c_n)
-            # h_n: (num_layers*num_directions, batch_size, ctx_cell_size)
-            # c_n: (num_layers*num_directions, batch_size, ctx_cell_size)
-            enc_outs, enc_last = self.ctx_encoder(enc_inputs, input_lengths=ctx_lens, goals=None)
-        else:
-            enc_outs, enc_last = None, None
-
+        # enc_outs: (batch_size, max_ctx_len, ctx_cell_size)
+        # enc_last: tuple, (h_n, c_n)
+        # h_n: (num_layers*num_directions, batch_size, ctx_cell_size)
+        # c_n: (num_layers*num_directions, batch_size, ctx_cell_size)
+        enc_outs, enc_last = self.ctx_encoder(enc_inputs, input_lengths=ctx_lens, goals=None)
 
         partitions = self.np2var(data_feed.partitions, LONG)
         num_partitions = self.np2var(data_feed.num_partitions, INT)
@@ -208,6 +208,7 @@ class HRED(BaseModel):
             ),
             state_emb_out,
         ], -1))
+        import pdb; pdb.set_trace()
 
         z_size = partitions.shape[1]
 
@@ -233,7 +234,7 @@ class HRED(BaseModel):
                 self.ball_emb(partitions[:,:,5]),
             ], -1))
             noise_state_emb = th.cat([my_state_emb, your_state_emb], -1)
-            logp_tprop_prop = th.einsum("nth,nsh->nts", state_emb_out, state_emb_out).log_softmax(1)
+            logp_tprop_prop = th.einsum("nth,nsh->nts", noise_state_emb, state_emb_out).log_softmax(1)
             nll_prop = - self.config.prop_weight * (logp_tprop_prop + logp_prop.unsqueeze(-2)).logsumexp(-1)[prop_mask].mean()
         else:
             nll_prop = - self.config.prop_weight * logp_prop[prop_mask].mean()
@@ -323,7 +324,7 @@ class HRED(BaseModel):
                 print(" ".join(out_utts_text[i]))
                 print(" ".join(ctx_utts_text[i]))
 
-            import pdb; pdb.set_trace()
+            #import pdb; pdb.set_trace()
             """
             return Pack(
                 dec_outputs = dec_outputs,
